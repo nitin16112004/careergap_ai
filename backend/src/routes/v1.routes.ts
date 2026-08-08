@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { createAuthRoutes, createPlaceholderRoutes } from "./placeholder.routes";
+import { createPlaceholderRoutes } from "./placeholder.routes";
+import { createAuthRoutes } from "./auth.routes";
 
 export const v1Routes = Router();
 v1Routes.use("/auth", createAuthRoutes());

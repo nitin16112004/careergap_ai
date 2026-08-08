@@ -334,3 +334,99 @@ supabase db seed
   cannot be executed in this environment.
 - No authentication flow, file upload, AI/RAG execution, roadmap generation,
   reminder worker, dashboard API, or payment workflow was implemented.
+
+## Phase 4 - Supabase Authentication Flow
+
+Date: 2026-08-08
+
+### Implementation Plan
+
+1. Read the project context, build log, assumptions, PRD, TRD, web flow, UI/UX
+   brief, backend schema, and implementation plan before coding.
+2. Implement Supabase Auth signup, login, verification, refresh, logout,
+   forgot-password, reset-password, resend-verification, and `/me` routes.
+3. Add Redis-backed failed-login and email-request protection without reducing
+   the documented 100 successful logins/minute capacity.
+4. Build the React/Vite auth experience with Supabase session persistence,
+   protected routes, React Hook Form, Zod, Lucide, Framer Motion, and
+   responsive accessible components.
+5. Run backend/frontend checks, local HTTP smoke checks, and document setup and
+   remaining scope.
+
+### What Was Built
+
+- Added backend auth controllers, service, validators, routes, and Supabase
+  session middleware context under `backend/src/`.
+- Added Supabase Auth flows for signup, verification OTP, login, refresh,
+  logout, password recovery/reset, resend verification, and `/me`.
+- Added idempotent profile initialization and `email_verified` synchronization
+  against the existing Supabase profile schema.
+- Added Redis-backed limits: five failed login attempts/minute per IP and
+  email/IP identity, three verification resends/10 minutes, and three reset
+  requests/15 minutes. Successful logins clear failure counters.
+- Added `email.service.ts` as a provider-neutral abstraction; Supabase Auth
+  remains the email provider and no complete templates are introduced.
+- Added a Vite React frontend with `/login`, `/signup`, `/verify-email`,
+  `/forgot-password`, and `/reset-password` pages.
+- Added reusable `AuthCard`, `InputField`, `PasswordInput`, buttons, feedback
+  messages, `AnimatedBackground`, `Logo`, `AuthProvider`, `SessionHandler`,
+  and `ProtectedRoute` components.
+- Added responsive premium visual treatment: dark AI brand panel, restrained
+  gradients, glass surface, keyboard-visible focus states, inline errors,
+  loading/disabled feedback, reduced-motion handling, and mobile layouts.
+- Added `AUTH_SETUP.md`, frontend setup guidance, and aligned root environment
+  documentation without exposing the service-role key to frontend config.
+
+### Files Created Or Modified
+
+- `backend/src/controllers/auth.controller.ts`
+- `backend/src/routes/auth.routes.ts`
+- `backend/src/services/auth.service.ts`
+- `backend/src/services/auth-rate-limit.service.ts`
+- `backend/src/services/email.service.ts`
+- `backend/src/validators/auth.validators.ts`
+- `backend/src/middleware/auth.middleware.ts`
+- `backend/src/middleware/admin.middleware.ts`
+- `backend/src/routes/v1.routes.ts`
+- `backend/src/routes/placeholder.routes.ts`
+- `backend/src/types/**`
+- `frontend/package.json`
+- `frontend/package-lock.json`
+- `frontend/src/**`
+- `frontend/index.html`
+- `frontend/vite.config.ts`
+- `frontend/tsconfig.json`
+- `frontend/.env.example`
+- `frontend/README.md`
+- `AUTH_SETUP.md`
+- `README.md`
+- `.env.example`
+- `BUILD_LOG.md`
+
+### Environment Variables
+
+Frontend requires `VITE_API_URL`, `VITE_SUPABASE_URL`, and
+`VITE_SUPABASE_ANON_KEY`. Backend uses the existing Supabase and Redis
+variables documented in `backend/.env.example`, including the server-only
+`SUPABASE_SERVICE_ROLE_KEY`.
+
+### Verification Completed
+
+- `backend/npm run check` passed.
+- `backend/npm run build` passed.
+- `frontend/npm run typecheck` passed.
+- `frontend/npm run build` passed; Vite emitted only a bundle-size advisory.
+- Vite HTTP smoke check returned `200` for `/login` and served the app root.
+- Backend startup smoke check returned `401` for unauthenticated `/auth/me` and
+  `400` for invalid signup input, confirming route and validation boundaries.
+
+### Testing Limitations And Pending Tasks
+
+- No live Supabase project or Redis credentials are configured, so successful
+  signup/login/provider email delivery could not be exercised against a real
+  account.
+- The in-app browser backend was unavailable in this session, so click,
+  screenshot, and viewport-level UI checks could not run; compiler, production
+  build, and local HTTP checks passed.
+- Pending product work: resume-first onboarding, dashboard, resume upload and
+  parsing, AI/RAG, roadmaps, reminders, payments, and admin workflows.

@@ -11,12 +11,16 @@ export const requireSupabaseSession = async (request: Request, _response: Respon
     const { data, error } = await getSupabaseAnonClient().auth.getUser(token);
     if (error || !data.user) throw new HttpError(401, "Invalid or expired session", "AUTH_INVALID");
 
-    request.auth = {
+    const authContext = {
+      id: data.user.id,
       userId: data.user.id,
       email: data.user.email,
       role: String(data.user.app_metadata?.role ?? "user"),
       claims: data.user.app_metadata ?? {},
+      accessToken: token,
     };
+    request.auth = authContext;
+    request.user = authContext;
     return next();
   } catch (error) {
     return next(error);

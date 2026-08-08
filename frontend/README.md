@@ -1,15 +1,36 @@
-# Frontend
+# CareerGuid AI Frontend
 
-React.js, TypeScript, and Vite application boundary.
+React, TypeScript, and Vite authentication experience for CareerGuid AI.
 
-Phase 0 contains folder structure only. The frontend app shell, routing, layouts, reusable components, and pages begin in the frontend setup phase.
+## Run Locally
 
-Planned source layout follows the Web Flow and Implementation Plan documents:
+```powershell
+cd frontend
+npm install
+Copy-Item .env.example .env.local
+npm run dev
+```
 
-- `src/pages/`
-- `src/components/`
-- `src/services/`
-- `src/hooks/`
-- `src/store/`
-- `src/utils/`
-- `src/routes/`
+Set `VITE_API_URL`, `VITE_SUPABASE_URL`, and `VITE_SUPABASE_ANON_KEY` in
+`.env.local`. Only the public Supabase URL and anon key belong in this file;
+never add `SUPABASE_SERVICE_ROLE_KEY` to frontend environment variables.
+
+## Authentication Routes
+
+- `/login`
+- `/signup`
+- `/verify-email`
+- `/forgot-password`
+- `/reset-password`
+
+The frontend uses Supabase Auth for persistent browser sessions and the backend
+auth API for server-side validation, profile lookup, rate limits, and protected
+operations. Resume onboarding, dashboard, AI, roadmap, payments, and other
+product features remain intentionally out of scope for this phase.
+
+## Checks
+
+```powershell
+npm run typecheck
+npm run build
+```
