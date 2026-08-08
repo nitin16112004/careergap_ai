@@ -265,3 +265,72 @@ Invoke-WebRequest http://localhost:5000/api/health
 - Business BullMQ workers and scheduler.
 - AI service HTTP adapters and RAG orchestration.
 - Live Supabase/Redis integration tests and production deployment configuration.
+
+## Phase 3 - Supabase Schema Contract Hardening
+
+Date: 2026-08-08
+
+### Database Implementation Plan
+
+1. Preserve the already-applied foundation migrations and add an additive
+   hardening migration for the explicit schema contract.
+2. Ensure every public table has UUID identity, lifecycle timestamps, foreign
+   keys, ownership indexes, and updated-at trigger coverage.
+3. Add the normalized `user_roles` mapping and nested roadmap relationship
+   constraint for future authorization and data integrity.
+4. Keep RLS based on `auth.uid()` and the Supabase Auth admin metadata claim;
+   prepare Storage buckets and policies without uploading files.
+5. Keep seed data idempotent and document Supabase CLI/local reset commands.
+
+### What Was Built
+
+- Added `supabase/migrations/202608080001_schema_hardening.sql` with the
+  required `user_roles` table, timestamp coverage, lifecycle indexes, complete
+  updated-at triggers, and the roadmap week/task composite foreign key.
+- Confirmed the required domains are represented: profiles, roles and skills,
+  resumes, analyses, RAG records, roadmaps, notifications, subscriptions,
+  payments, AI jobs, audit logs, and system settings.
+- Added explicit role RLS policies while retaining owner, nested-roadmap,
+  authenticated lookup, admin, and Storage policies from the foundation.
+- Added the requested `supabase/seed/` and `supabase/functions/` structure.
+- Extended idempotent seed data with Data Scientist, AI Engineer, Basic ATS,
+  Modern ATS, Developer ATS, Free, and Premium entries, plus role-skill links.
+- Added `DATABASE_SETUP.md` and expanded `supabase/README.md` with schema,
+  relationship, RLS, Storage, and migration guidance.
+
+### Files Created Or Modified
+
+- `supabase/migrations/202608080001_schema_hardening.sql`
+- `supabase/seed/.gitkeep`
+- `supabase/functions/.gitkeep`
+- `supabase/seed.sql`
+- `supabase/README.md`
+- `DATABASE_SETUP.md`
+- `BUILD_LOG.md`
+
+### How To Run Or Test
+
+```powershell
+supabase start
+supabase db reset
+supabase db lint
+```
+
+For a linked project:
+
+```powershell
+supabase link --project-ref <project-ref>
+supabase db push
+supabase db seed
+```
+
+### Verification And Limitations
+
+- Static SQL checks cover migration ordering, required table names, UUID
+  primary keys, lifecycle timestamps, RLS coverage, Storage buckets, and seed
+  entries.
+- Supabase CLI and `psql` availability will be checked before commit. If they
+  are unavailable, live migration, database lint, and server-side SQL parsing
+  cannot be executed in this environment.
+- No authentication flow, file upload, AI/RAG execution, roadmap generation,
+  reminder worker, dashboard API, or payment workflow was implemented.

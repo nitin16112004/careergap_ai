@@ -1,27 +1,38 @@
-# Supabase
+# Supabase Database Foundation
 
-Phase 1 database foundation for CareerGuid AI.
+Supabase PostgreSQL is the authoritative relational database, Supabase Auth is
+the identity source, Supabase Storage holds files, and pgvector prepares the
+future RAG search layer. MongoDB is not used.
 
-## What Is Included
+## Structure
 
-- Extensions: `uuid-ossp`, `pgcrypto`, `vector`.
-- Enum types for roles, work preference, parsing status, tasks, reminders, email status, subscriptions, and AI jobs.
-- Core tables for profiles, resumes, skills, skill gap analysis, RAG, roadmaps, reminders, generated resumes, plans, subscriptions, usage counters, audit logs, and system settings.
-- Indexes and `updated_at` triggers.
-- Signup trigger to create `profiles` rows from `auth.users`.
-- Row Level Security policies.
-- Supabase Storage buckets and ownership policies.
-- Seed data for job roles, skills, aliases, role-skill mappings, plans, and resume templates.
+```text
+supabase/
+├── migrations/
+├── seed/
+├── functions/
+├── seed.sql
+└── README.md
+```
 
-## Files
+`seed.sql` remains at the Supabase CLI standard location. The `seed/` and
+`functions/` directories are reserved for future seed modules and Edge
+Functions; no business function is implemented in this phase.
 
-- `migrations/202606290001_foundation_schema.sql`
-- `migrations/202606290002_rls_storage_policies.sql`
-- `seed.sql`
+## Migrations
+
+- `migrations/202606290001_foundation_schema.sql` creates extensions, enums,
+  domain tables, indexes, and the Auth profile trigger.
+- `migrations/202606290002_rls_storage_policies.sql` enables RLS and creates
+  user, admin, and Storage ownership policies.
+- `migrations/202608080001_schema_hardening.sql` adds the explicit
+  `user_roles` mapping, timestamp coverage, parent-child roadmap constraint,
+  lifecycle indexes, and role RLS policies.
+
+The migrations create the schema only. Resume uploads, AI parsing, RAG
+generation, reminders, and payments remain future application features.
 
 ## Apply With Supabase CLI
-
-Install and authenticate the Supabase CLI, then link this repo to a Supabase project:
 
 ```powershell
 supabase link --project-ref <project-ref>
@@ -29,24 +40,31 @@ supabase db push
 supabase db seed
 ```
 
-For local Supabase development:
+For a local Supabase instance:
 
 ```powershell
 supabase start
 supabase db reset
 ```
 
-## Storage Path Convention
+`supabase db reset` applies migrations in timestamp order and then runs the
+root `seed.sql` file.
 
-Storage policies expect user-owned objects to start with the auth user id:
+## Storage Buckets
 
-- `resumes/{user_id}/{resume_id}.pdf` maps to object name `{user_id}/{resume_id}.pdf` inside the `resumes` bucket.
-- `generated-resumes/{user_id}/{generated_resume_id}.pdf` maps to object name `{user_id}/{generated_resume_id}.pdf` inside the `generated-resumes` bucket.
+The Storage migration prepares these buckets without uploading files:
 
-Supabase stores the bucket separately from the object name, so upload paths inside each bucket should start with `{user_id}/`.
+- `resumes` (private, PDF/DOCX, 5 MB limit)
+- `generated-resumes` (private, PDF/DOCX)
+- `knowledge-base-files` (private, admin-managed)
+- `template-previews` (public previews, admin-managed)
 
-## Notes
+User-owned object paths start with the auth user id inside the bucket, for
+example `{user_id}/{resume_id}.pdf` in `resumes`.
 
-- This phase does not implement frontend, backend, AI service, workers, or product features.
-- MongoDB is intentionally not used.
-- RAG tables and pgvector are included as database foundation only; RAG generation belongs to a later phase.
+## Security Boundary
+
+RLS derives ownership from `auth.uid()` and nested roadmap relationships.
+Admin policies use the Supabase Auth `app_metadata.role` claim through the
+`public.is_admin()` helper. The service role is intended only for trusted
+backend or worker processes and must never be exposed to clients.

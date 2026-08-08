@@ -7,7 +7,9 @@ values
   ('Frontend Developer', 'frontend-developer', 'Build responsive user interfaces, component systems, and client-side app flows.', 'Software Engineering'),
   ('Full Stack Developer', 'full-stack-developer', 'Build frontend, backend, database, and deployment pieces across the stack.', 'Software Engineering'),
   ('Data Analyst', 'data-analyst', 'Analyze data, build dashboards, query databases, and communicate insights.', 'Data'),
+  ('Data Scientist', 'data-scientist', 'Use statistics, programming, and machine learning to solve data problems.', 'Data Science'),
   ('AI/ML Engineer', 'ai-ml-engineer', 'Build machine learning, AI, and model-powered application workflows.', 'AI'),
+  ('AI Engineer', 'ai-engineer', 'Build production applications that use machine learning and generative AI.', 'AI'),
   ('Cloud Engineer', 'cloud-engineer', 'Design, deploy, and operate cloud infrastructure and services.', 'Cloud'),
   ('DevOps Engineer', 'devops-engineer', 'Automate CI/CD, infrastructure, monitoring, and deployment workflows.', 'DevOps'),
   ('Java Developer', 'java-developer', 'Build backend applications and services using Java ecosystem tools.', 'Software Engineering'),
@@ -93,10 +95,17 @@ with role_skill_seed(role_slug, normalized_name, priority, skill_level, weight) 
     ('full-stack-developer', 'docker', 'good_to_have', 'beginner', 2),
     ('data-analyst', 'postgresql', 'must_have', 'intermediate', 3),
     ('data-analyst', 'python', 'good_to_have', 'beginner', 2),
+    ('data-scientist', 'python', 'must_have', 'intermediate', 3),
+    ('data-scientist', 'postgresql', 'good_to_have', 'intermediate', 2),
+    ('data-scientist', 'aiml', 'must_have', 'intermediate', 3),
     ('ai-ml-engineer', 'python', 'must_have', 'intermediate', 3),
     ('ai-ml-engineer', 'aiml', 'must_have', 'intermediate', 3),
     ('ai-ml-engineer', 'rag', 'good_to_have', 'beginner', 2),
     ('ai-ml-engineer', 'fastapi', 'good_to_have', 'beginner', 2),
+    ('ai-engineer', 'python', 'must_have', 'intermediate', 3),
+    ('ai-engineer', 'aiml', 'must_have', 'intermediate', 3),
+    ('ai-engineer', 'rag', 'good_to_have', 'beginner', 2),
+    ('ai-engineer', 'fastapi', 'good_to_have', 'beginner', 2),
     ('cloud-engineer', 'docker', 'must_have', 'intermediate', 3),
     ('cloud-engineer', 'systemdesign', 'good_to_have', 'beginner', 2),
     ('devops-engineer', 'docker', 'must_have', 'intermediate', 3),
@@ -163,8 +172,9 @@ insert into public.resume_templates (
   is_active
 )
 values
-  ('Classic ATS', 'classic-ats', 'Simple single-column ATS-friendly resume template.', null, false, true),
+  ('Basic ATS', 'basic-ats', 'Simple single-column ATS-friendly resume template.', null, false, true),
   ('Modern ATS', 'modern-ats', 'Clean two-section resume template for technical profiles.', null, false, true),
+  ('Developer ATS', 'developer-ats', 'Developer-focused ATS layout for technical projects and skills.', null, false, true),
   ('Premium Focus', 'premium-focus', 'Premium layout for role-targeted resume versions.', null, true, true)
 on conflict (template_slug) do update
 set
