@@ -129,6 +129,13 @@ dist
 # Docusaurus cache and generated files
 .docusaurus
 
+# Generated documentation and local infrastructure state
+documentation/extracted/
+.supabase/
+.terraform/
+*.tfstate
+*.tfstate.*
+
 # Serverless directories
 .serverless/
 
