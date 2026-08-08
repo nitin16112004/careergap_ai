@@ -1,6 +1,28 @@
 name: careerguid-ai
 
 services:
+  backend:
+    build:
+      context: ./backend
+    container_name: careerguid-ai-backend
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 5000
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      AI_SERVICE_URL: ${AI_SERVICE_URL:-http://localhost:8000}
+      SUPABASE_URL: ${SUPABASE_URL:-https://example.supabase.co}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-local-placeholder}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-local-placeholder}
+      REDIS_URL: redis://redis:6379
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "5000:5000"
+    networks:
+      - careerguid-ai
+
   redis:
     image: redis:7-alpine
     container_name: careerguid-ai-redis

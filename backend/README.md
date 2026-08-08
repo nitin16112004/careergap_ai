@@ -1,7 +1,6 @@
 # Backend
 
-Node.js, Express.js, and TypeScript API boundary.
+Node.js, Express.js, and TypeScript modular-monolith foundation for CareerGuid AI.
 
-Phase 0 contains folder structure only. The backend base setup starts with Express, typed configuration, middleware, Supabase client, Redis, validation, logging, queues, and health checks in a later phase.
-
-Planned architecture is a modular monolith for MVP.
+See [`../BACKEND_SETUP.md`](../BACKEND_SETUP.md) for the architecture, environment
+variables, local run instructions, health checks, and Phase 2 boundary.

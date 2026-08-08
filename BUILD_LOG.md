@@ -206,3 +206,62 @@ supabase db reset
 - Apply migrations and seed data to Supabase.
 - Add real Supabase URL, anon key, service role key, and database URL to local environment files outside version control.
 - Phase 2: build backend base setup with Express, TypeScript, Supabase client, Redis config, middleware, validation, and health checks.
+
+## Phase 2 - Backend Foundation
+
+Date: 2026-08-08
+
+### Implementation Plan
+
+1. Start from the latest `dev` branch after reading all project documentation.
+2. Scaffold the documented TypeScript Express modular monolith.
+3. Add typed environment validation, Supabase database/auth/storage adapters, and Redis/BullMQ boundaries.
+4. Add security middleware, validation/error boundaries, logging, CORS, rate limits, and health probes.
+5. Prepare versioned API module routes without implementing product flows.
+6. Add Docker support, setup documentation, and build/startup checks.
+
+### What Was Built
+
+- Created `backend/` TypeScript project configuration, package scripts, and Dockerfile.
+- Added typed environment validation with server-only Supabase service key handling.
+- Added Supabase anon/service/storage client boundaries and a database health probe.
+- Added Redis connection, cache service, BullMQ queue factory, and no business workers.
+- Added Helmet, allowlisted CORS, Pino HTTP logging with secret redaction, Zod validation middleware, secure errors, and Redis-backed rate-limit boundaries.
+- Added Supabase session verification and admin middleware preparation without implementing authentication flows.
+- Added `/api/health`, `/api/health/db`, `/api/health/redis`, and `/api/health/ai-service`.
+- Added `/api/v1/{auth,users,profile,resume,roadmap,ai,notifications,admin}` module boundaries returning explicit not-implemented responses.
+- Added `BACKEND_SETUP.md` with architecture, environment, run, health, and pending-work guidance.
+- Added the backend service to Docker Compose while keeping Supabase external and Redis managed by Compose.
+
+### Files Created Or Modified
+
+- `backend/package.json`
+- `backend/package-lock.json`
+- `backend/tsconfig.json`
+- `backend/Dockerfile`
+- `backend/.dockerignore`
+- `backend/.env.example`
+- `backend/src/**`
+- `backend/README.md`
+- `BACKEND_SETUP.md`
+- `docker-compose.yml`
+- `BUILD_LOG.md`
+
+### How To Run Or Test
+
+```powershell
+cd backend
+npm install
+npm run typecheck
+npm run build
+npm start
+Invoke-WebRequest http://localhost:5000/api/health
+```
+
+### Pending Implementation
+
+- Supabase Auth signup/login, session UX, and complete authorization flows.
+- Resume upload/parsing, onboarding, skill-gap, roadmap, ATS, reminders, billing, and admin APIs.
+- Business BullMQ workers and scheduler.
+- AI service HTTP adapters and RAG orchestration.
+- Live Supabase/Redis integration tests and production deployment configuration.
