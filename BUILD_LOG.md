@@ -136,6 +136,45 @@ Date: 2026-08-14
 - `frontend/src/styles.css`
 - `frontend/src/types/ats-resume.ts`
 - `ATS_RESUME_BUILDER_SETUP.md`
+
+## Phase 11 - RAG Roadmap Implementation
+
+Date: 2026-08-14
+
+### Implementation Plan
+
+1. Confirm the existing roadmap schema and ownership constraints in the production database migration files.
+2. Add the backend roadmap service, validation, controller, and route layer using the existing authenticated Supabase pattern.
+3. Build the retrieval-grounded roadmap generation flow from actual profile, skill analysis, and knowledge-base data only.
+4. Validate the generated roadmap before saving it and refuse unsupported or invented personal facts.
+5. Verify the backend checks and record the implementation status.
+
+### What Was Built
+
+- Added the roadmap data contract in `backend/src/types/roadmap.ts`.
+- Added `backend/src/services/roadmap.service.ts` with profile + skill-gap + knowledge-base retrieval logic and strict validation before persistence.
+- Added `backend/src/controllers/roadmap.controller.ts` and `backend/src/routes/roadmap.routes.ts` for protected roadmap generation and retrieval.
+- Wired the route into `backend/src/routes/v1.routes.ts` at `/api/v1/roadmap`.
+- Added a regression test in `backend/src/services/roadmap.service.test.ts` to ensure real-user data is used and no fabricated facts are introduced.
+- Added roadmap environment documentation in `RAG_ROADMAP_SETUP.md`.
+
+### Verification Completed
+
+- Roadmap regression test was created first and failed before implementation due to the missing module.
+- The roadmap implementation is now wired into the backend route set.
+- Backend typecheck and build checks are pending final verification at the completion of the feature work.
+
+### Files Created Or Modified
+
+- `backend/src/controllers/roadmap.controller.ts`
+- `backend/src/routes/roadmap.routes.ts`
+- `backend/src/routes/v1.routes.ts`
+- `backend/src/services/roadmap.service.ts`
+- `backend/src/services/roadmap.service.test.ts`
+- `backend/src/types/roadmap.ts`
+- `backend/src/validators/roadmap.validators.ts`
+- `RAG_ROADMAP_SETUP.md`
+
 ## Phase 1 - Supabase Setup And Database Foundation
 
 Date: 2026-06-29
