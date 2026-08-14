@@ -44,6 +44,13 @@ export const roadmapService = {
         return apiRequest<RoadmapRecord>(`/roadmap/${roadmapId}`);
     },
 
+    async updateTaskStatus(roadmapId: string, taskId: string, status: "pending" | "completed" | "skipped" | "overdue"): Promise<RoadmapTaskCompletionResult> {
+        return apiRequest<RoadmapTaskCompletionResult>(`/roadmap/${roadmapId}/tasks/${taskId}`, {
+            method: "PATCH",
+            body: JSON.stringify({ status }),
+        });
+    },
+
     async completeTask(roadmapId: string, taskId: string): Promise<RoadmapTaskCompletionResult> {
         return apiRequest<RoadmapTaskCompletionResult>(`/roadmap/${roadmapId}/tasks/${taskId}/complete`, {
             method: "PATCH",

@@ -312,7 +312,7 @@ describe("roadmapService.generate", () => {
         expect(result.weeks[0].tasks[0].task_title).toBe("Practice TypeScript");
     });
 
-    it.skip("marks a task complete and recalculates roadmap progress while protecting ownership", async () => {
+    it("marks a task complete and recalculates roadmap progress while protecting ownership", async () => {
         const roadmapTable = table();
         roadmapTable.data = {
             id: "roadmap-4",
@@ -370,23 +370,35 @@ describe("roadmapService.generate", () => {
         const updatedRoadmapTable = table();
         updatedRoadmapTable.data = {
             ...roadmapTable.data,
-            progress_percentage: 50,
+            progress_percentage: 100,
         };
+
+        mocked.from.mockImplementation((tableName: string) => {
+            switch (tableName) {
+                case "roadmaps": return roadmapTable;
+                case "roadmap_weeks": return weekTable;
+                case "roadmap_tasks": return taskTable;
+                default: return table();
+            }
+        });
 
         roadmapTable.maybeSingle.mockResolvedValue({ data: roadmapTable.data, error: null });
         taskTable.maybeSingle.mockResolvedValue({ data: taskTable.data[0], error: null });
         taskTable.update.mockImplementation(() => {
             taskTable.data = updatedTaskTable.data;
+            taskTable.maybeSingle.mockResolvedValue({ data: updatedTaskTable.data[0], error: null });
             return taskTable;
         });
-        taskTable.select.mockResolvedValue({ data: updatedTaskTable.data, error: null });
+        taskTable.data = updatedTaskTable.data;
+        weekTable.data = weekTable.data;
         roadmapTable.update.mockImplementation(() => {
             roadmapTable.data = updatedRoadmapTable.data;
+            roadmapTable.maybeSingle.mockResolvedValue({ data: updatedRoadmapTable.data, error: null });
             return roadmapTable;
         });
 
-        const result = await roadmapService.completeTask(userId, "roadmap-4", "task-4");
-        expect(result.progress_percentage).toBeGreaterThanOrEqual(0);
+        const result = await roadmapService.updateTaskStatus(userId, "roadmap-4", "task-4", "completed");
+        expect(result.progress_percentage).toBe(100);
         expect(result.weeks[0].tasks[0].status).toBe("completed");
     });
 });

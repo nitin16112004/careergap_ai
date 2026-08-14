@@ -33,6 +33,19 @@ export const roadmapUpdateSchema = z.object({
     params: z.object({ roadmapId: z.string().uuid("A valid roadmap id is required") }),
 });
 
+export const roadmapTaskUpdateSchema = z.object({
+    body: z.object({
+        status: z.enum(["pending", "completed", "skipped", "overdue"]).optional(),
+    }).refine((value) => Object.keys(value).length > 0, {
+        message: "Provide a valid task status update.",
+    }),
+    query: z.record(z.unknown()).default({}),
+    params: z.object({
+        roadmapId: z.string().uuid("A valid roadmap id is required"),
+        taskId: z.string().uuid("A valid task id is required"),
+    }),
+});
+
 export const roadmapTaskCompletionSchema = z.object({
     body: z.record(z.unknown()).default({}),
     query: z.record(z.unknown()).default({}),

@@ -391,7 +391,7 @@ export const roadmapService = {
         return data as RoadmapRecord;
     },
 
-    async completeTask(userId: string, roadmapId: string, taskId: string): Promise<RoadmapGenerationResult> {
+    async updateTaskStatus(userId: string, roadmapId: string, taskId: string, nextStatus: RoadmapTaskRecord["status"]): Promise<RoadmapGenerationResult> {
         const client = getSupabaseStorageClient();
         const { data: roadmap, error: roadmapError } = await client.from("roadmaps").select("*").eq("id", roadmapId).eq("user_id", userId).maybeSingle();
         if (roadmapError) throw new HttpError(500, "Unable to load the requested roadmap.", "ROADMAP_FETCH_FAILED", false);
@@ -401,12 +401,16 @@ export const roadmapService = {
         if (taskError) throw new HttpError(500, "Unable to update the roadmap task.", "ROADMAP_TASK_UPDATE_FAILED", false);
         if (!task) throw new HttpError(404, "Roadmap task not found.", "ROADMAP_TASK_NOT_FOUND");
 
-        const completionStamp = new Date().toISOString();
-        const { data: updatedTask, error: updateTaskError } = await client.from("roadmap_tasks").update({
-            status: "completed",
-            completed_at: completionStamp,
-        }).eq("id", taskId).eq("roadmap_id", roadmapId).select("*").maybeSingle();
-        if (updateTaskError) throw new HttpError(500, "Unable to mark the roadmap task as completed.", "ROADMAP_TASK_UPDATE_FAILED", false);
+        const updatePayload: Record<string, unknown> = { status: nextStatus };
+        if (nextStatus === "completed") {
+            updatePayload.completed_at = new Date().toISOString();
+        } else if (task.status === "completed") {
+            updatePayload.completed_at = null;
+        }
+
+        const { data: updatedTask, error: updateTaskError } = await client.from("roadmap_tasks").update(updatePayload).eq("id", taskId).eq("roadmap_id", roadmapId).select("*").maybeSingle();
+        if (updateTaskError) throw new HttpError(500, "Unable to update the roadmap task status.", "ROADMAP_TASK_UPDATE_FAILED", false);
+        if (!updatedTask) throw new HttpError(404, "Roadmap task not found.", "ROADMAP_TASK_NOT_FOUND");
 
         const { data: remainingTasks, error: fetchTaskError } = await client.from("roadmap_tasks").select("*").eq("roadmap_id", roadmapId).order("sort_order", { ascending: true });
         if (fetchTaskError) throw new HttpError(500, "Unable to recalculate roadmap progress.", "ROADMAP_TASK_FETCH_FAILED", false);
@@ -420,6 +424,10 @@ export const roadmapService = {
         if (!updatedRoadmap) throw new HttpError(404, "Roadmap not found.", "ROADMAP_NOT_FOUND");
 
         return await this.get(userId, roadmapId);
+    },
+
+    async completeTask(userId: string, roadmapId: string, taskId: string): Promise<RoadmapGenerationResult> {
+        return this.updateTaskStatus(userId, roadmapId, taskId, "completed");
     },
 
     async delete(userId: string, roadmapId: string): Promise<void> {

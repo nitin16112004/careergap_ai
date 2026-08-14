@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import type { RoadmapTaskStatus } from "../types/roadmap";
 import { roadmapService } from "../services/roadmap.service";
 import { HttpError } from "../utils/http-error";
 
@@ -72,6 +73,25 @@ export const deleteRoadmap = async (request: Request, response: Response, next: 
     }
 };
 
+export const updateTaskStatus = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
+    try {
+        const nextStatus = request.body?.status;
+        if (typeof nextStatus !== "string") {
+            throw new HttpError(400, "A valid task status is required.", "ROADMAP_TASK_STATUS_INVALID");
+        }
+
+        const validStatuses: RoadmapTaskStatus[] = ["pending", "completed", "skipped", "overdue"];
+        if (!validStatuses.includes(nextStatus as RoadmapTaskStatus)) {
+            throw new HttpError(400, "A valid task status is required.", "ROADMAP_TASK_STATUS_INVALID");
+        }
+
+        const result = await roadmapService.updateTaskStatus(userIdFrom(request), roadmapIdFrom(request), taskIdFrom(request), nextStatus as RoadmapTaskStatus);
+        response.json({ success: true, message: "Roadmap task status updated.", data: result });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const completeTask = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
     try {
         const result = await roadmapService.completeTask(userIdFrom(request), roadmapIdFrom(request), taskIdFrom(request));
@@ -87,5 +107,6 @@ export const roadmapController = {
     getRoadmap,
     updateRoadmap,
     deleteRoadmap,
+    updateTaskStatus,
     completeTask,
 };

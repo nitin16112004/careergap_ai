@@ -153,19 +153,21 @@ Date: 2026-08-14
 
 - Added the roadmap data contract in `backend/src/types/roadmap.ts`.
 - Added `backend/src/services/roadmap.service.ts` with profile + skill-gap + knowledge-base retrieval logic and strict validation before persistence.
-- Added `backend/src/controllers/roadmap.controller.ts` and `backend/src/routes/roadmap.routes.ts` for protected roadmap generation, retrieval, and task completion updates.
+- Added `backend/src/controllers/roadmap.controller.ts` and `backend/src/routes/roadmap.routes.ts` for protected roadmap generation, retrieval, and authenticated task progress updates.
+- Added the generic task-status endpoint used for real roadmap progress tracking and a compatibility completion shortcut.
 - Wired the route into `backend/src/routes/v1.routes.ts` at `/api/v1/roadmap`.
-- Added a protected roadmap page in `frontend/src/pages/RoadmapPage.tsx` and connected it via `frontend/src/App.tsx`.
-- Added the roadmap frontend service and type support in `frontend/src/services/roadmap.service.ts` and `frontend/src/types/roadmap.ts`.
-- Added a regression test in `backend/src/services/roadmap.service.test.ts` covering real-user data grounding and retrieval-based roadmap retrieval.
-- Added roadmap environment documentation in `RAG_ROADMAP_SETUP.md`.
+- Added the protected roadmap page in `frontend/src/pages/RoadmapPage.tsx` with the real roadmap overview, missing-skill display, task list, progress bar, and task completion controls.
+- Connected the frontend roadmap API in `frontend/src/services/roadmap.service.ts` and the matching types in `frontend/src/types/roadmap.ts`.
+- Added the roadmap UI and progress regression tests in `frontend/src/pages/RoadmapPage.test.tsx` and completed the backend task progress verification in `backend/src/services/roadmap.service.test.ts`.
+- Added roadmap documentation and implementation notes in `RAG_ROADMAP_SETUP.md`.
 
 ### Verification Completed
 
-- Roadmap regression tests were created first and the missing module gap was reproduced before the feature fix.
-- The roadmap backend is now wired into the protected route set and supports authenticated task completion with ownership-based progress recalculation.
-- Backend and frontend typecheck checks pass.
-- Backend and frontend production builds pass.
+- Roadmap regression tests were created first and the missing module gap was reproduced before the final fix.
+- The roadmap backend is now wired into the protected route set and supports authenticated task completion plus status updates with ownership checks and progress recalculation.
+- The frontend now loads a user roadmap, renders missing skills, allows task completion updates, and refreshes the progress summary without a full page reload.
+- Backend, frontend, and production build checks pass on the current feature branch.
+- The final validation was rerun after the task-status and frontend UI fixes, and both the backend and frontend roadmap proof sets pass.
 
 ### Files Created Or Modified
 
@@ -179,10 +181,12 @@ Date: 2026-08-14
 - `frontend/src/App.tsx`
 - `frontend/src/pages/AuthNextStepPage.tsx`
 - `frontend/src/pages/RoadmapPage.tsx`
+- `frontend/src/pages/RoadmapPage.test.tsx`
 - `frontend/src/services/roadmap.service.ts`
 - `frontend/src/styles.css`
 - `frontend/src/types/roadmap.ts`
 - `RAG_ROADMAP_SETUP.md`
+- `BUILD_LOG.md`
 
 ## Phase 1 - Supabase Setup And Database Foundation
 
