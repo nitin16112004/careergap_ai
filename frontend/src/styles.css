@@ -194,6 +194,23 @@ a { color: inherit; }
 .review-bottom-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 13px; }
 .review-loading { display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 130px; color: #64748b; font-size: 13px; }
 .review-status { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 15px; color: #15803d; font-size: 11px; }
+.resume-builder-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(240px, .7fr); gap: 20px; align-items: start; }
+.resume-builder-panel { display: grid; gap: 16px; }
+.resume-builder-ats-box { position: sticky; top: 20px; display: grid; gap: 16px; padding: 18px; border: 1px solid #dbeafe; border-radius: 18px; background: linear-gradient(135deg, #eff6ff, #ecfdf5); }
+.resume-score-header { display: flex; align-items: center; justify-content: space-between; }
+.ats-score-value { font-family: "Space Grotesk", sans-serif; font-size: clamp(34px, 4vw, 54px); font-weight: 700; letter-spacing: -.07em; color: var(--ink); }
+.ats-score-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.ats-score-grid div { display: grid; gap: 4px; padding: 10px; border: 1px solid rgba(148,163,184,.25); border-radius: 12px; background: rgba(255,255,255,.55); }
+.ats-score-grid strong { font-size: 15px; color: var(--ink); }
+.ats-score-grid span { font-size: 11px; color: #64748b; }
+.resume-builder-suggestions { display: grid; gap: 8px; }
+.resume-builder-suggestions h3 { margin: 0; color: var(--ink); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+.resume-builder-suggestions ul { margin: 0; padding-left: 18px; color: #475569; font-size: 12px; line-height: 1.6; }
+.resume-builder-suggestions p { margin: 0; color: #475569; font-size: 12px; line-height: 1.5; }
+.resume-builder-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.resume-builder-actions-footer { display: flex; justify-content: flex-end; margin-top: 10px; }
+.resume-builder-panel .input-shell, .resume-builder-panel .resume-textarea { width: 100%; }
+.resume-builder-panel .resume-textarea { min-height: 140px; }
 
 @media (max-width: 1020px) {
   .auth-page-shell { grid-template-columns: minmax(320px, .8fr) minmax(440px, 1.2fr); }

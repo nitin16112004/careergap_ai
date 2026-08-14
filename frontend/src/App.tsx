@@ -12,6 +12,8 @@ const ResetPasswordPage = lazy(() => import("./pages/auth/ResetPasswordPage").th
 const AuthNextStepPage = lazy(() => import("./pages/AuthNextStepPage").then((module) => ({ default: module.AuthNextStepPage })));
 const ResumeUploadPage = lazy(() => import("./pages/onboarding/ResumeUploadPage").then((module) => ({ default: module.ResumeUploadPage })));
 const ReviewProfilePage = lazy(() => import("./pages/onboarding/ReviewProfilePage").then((module) => ({ default: module.ReviewProfilePage })));
+const ResumeBuilderPage = lazy(() => import("./pages/resume-builder/ResumeBuilderPage").then((module) => ({ default: module.ResumeBuilderPage })));
+const ResumeBuilderPreviewPage = lazy(() => import("./pages/resume-builder/ResumeBuilderPreviewPage").then((module) => ({ default: module.ResumeBuilderPreviewPage })));
 
 export const App = (): JSX.Element => (
   <Suspense fallback={<FullPageLoader label="Loading your secure workspace..." />}>
@@ -26,6 +28,9 @@ export const App = (): JSX.Element => (
       <Route element={<ProtectedRoute />}>
         <Route path="/onboarding/upload-resume" element={<ResumeUploadPage />} />
         <Route path="/onboarding/review-profile" element={<ReviewProfilePage />} />
+        <Route path="/resume-builder" element={<ResumeBuilderPage />} />
+        <Route path="/resume-builder/:id" element={<ResumeBuilderPage />} />
+        <Route path="/resume-builder/:id/preview" element={<ResumeBuilderPreviewPage />} />
         <Route path="/dashboard" element={<AuthNextStepPage />} />
         <Route path="/admin" element={<AuthNextStepPage />} />
       </Route>

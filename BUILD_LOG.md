@@ -91,7 +91,51 @@ No app server is expected to run in Phase 0 because no frontend, backend, AI, au
 
 - Phase 1: apply migrations to a real Supabase project once project credentials and Supabase CLI are available.
 - Phase 2: scaffold runnable backend base with Express, TypeScript, Supabase client, Redis config, middleware, and health checks.
+## Phase 3 - ATS Resume Builder Implementation
 
+Date: 2026-08-14
+
+### Implementation Plan
+
+1. Extend the backend with the ATS resume builder API surface and validation.
+2. Reuse the existing resume ownership model and `generated_resumes` table.
+3. Generate an ATS-optimized summary from the user's real extracted profile data and role context.
+4. Add the frontend resume builder and preview screens.
+5. Validate with targeted tests and TypeScript/build checks.
+
+### What Was Built
+
+- Added ATS resume analysis and generation service logic in `backend/src/services/ats-resume.service.ts`.
+- Added validation schemas for analyze/generate/update flows in `backend/src/validators/ats-resume.validators.ts`.
+- Added the ATS controller and routed it via `/api/v1/resume-builder` in `backend/src/routes/ats-resume.routes.ts` and `backend/src/routes/v1.routes.ts`.
+- Added frontend ATS types and resume service calls for analyze/generate/list and preview operations.
+- Added the main builder page and preview page under `frontend/src/pages/resume-builder/`.
+- Added the ATS page styling and page wiring in `frontend/src/App.tsx` and `frontend/src/styles.css`.
+- Added test coverage for ATS scoring and factual resume-grounded generation in `backend/src/services/ats-resume.service.test.ts`.
+
+### Verification Completed
+
+- ATS service tests pass: 2/2 tests passing.
+- Backend TypeScript typecheck passes.
+- Frontend TypeScript typecheck passes.
+- Backend and frontend production builds pass.
+
+### Files Created Or Modified
+
+- `backend/src/controllers/ats-resume.controller.ts`
+- `backend/src/routes/ats-resume.routes.ts`
+- `backend/src/routes/v1.routes.ts`
+- `backend/src/services/ats-resume.service.ts`
+- `backend/src/services/ats-resume.service.test.ts`
+- `backend/src/types/ats-resume.ts`
+- `backend/src/validators/ats-resume.validators.ts`
+- `frontend/src/App.tsx`
+- `frontend/src/pages/resume-builder/ResumeBuilderPage.tsx`
+- `frontend/src/pages/resume-builder/ResumeBuilderPreviewPage.tsx`
+- `frontend/src/services/resume.service.ts`
+- `frontend/src/styles.css`
+- `frontend/src/types/ats-resume.ts`
+- `ATS_RESUME_BUILDER_SETUP.md`
 ## Phase 1 - Supabase Setup And Database Foundation
 
 Date: 2026-06-29
