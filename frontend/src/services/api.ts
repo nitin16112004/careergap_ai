@@ -17,7 +17,7 @@ export class ApiError extends Error {
 export const apiRequest = async <T>(path: string, options: RequestInit = {}): Promise<T> => {
   const { data } = await supabase.auth.getSession();
   const headers = new Headers(options.headers);
-  headers.set("Content-Type", "application/json");
+  if (!(options.body instanceof FormData)) headers.set("Content-Type", "application/json");
   if (data.session?.access_token) headers.set("Authorization", `Bearer ${data.session.access_token}`);
 
   let response: Response;

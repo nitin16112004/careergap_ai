@@ -10,6 +10,8 @@ const VerifyEmailPage = lazy(() => import("./pages/auth/VerifyEmailPage").then((
 const ForgotPasswordPage = lazy(() => import("./pages/auth/ForgotPasswordPage").then((module) => ({ default: module.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => import("./pages/auth/ResetPasswordPage").then((module) => ({ default: module.ResetPasswordPage })));
 const AuthNextStepPage = lazy(() => import("./pages/AuthNextStepPage").then((module) => ({ default: module.AuthNextStepPage })));
+const ResumeUploadPage = lazy(() => import("./pages/onboarding/ResumeUploadPage").then((module) => ({ default: module.ResumeUploadPage })));
+const ReviewProfilePage = lazy(() => import("./pages/onboarding/ReviewProfilePage").then((module) => ({ default: module.ReviewProfilePage })));
 
 export const App = (): JSX.Element => (
   <Suspense fallback={<FullPageLoader label="Loading your secure workspace..." />}>
@@ -22,7 +24,8 @@ export const App = (): JSX.Element => (
         <Route path="/reset-password" element={<ResetPasswordPage />} />
       </Route>
       <Route element={<ProtectedRoute />}>
-        <Route path="/onboarding/upload-resume" element={<AuthNextStepPage />} />
+        <Route path="/onboarding/upload-resume" element={<ResumeUploadPage />} />
+        <Route path="/onboarding/review-profile" element={<ReviewProfilePage />} />
         <Route path="/dashboard" element={<AuthNextStepPage />} />
         <Route path="/admin" element={<AuthNextStepPage />} />
       </Route>

@@ -1,8 +1,8 @@
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 
-export const AuthCard = ({ eyebrow, title, subtitle, children, footer }: { eyebrow?: string; title: string; subtitle?: string; children: ReactNode; footer?: ReactNode }): JSX.Element => (
-  <motion.section className="auth-card" initial={{ opacity: 0, y: 16, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.45, ease: "easeOut" }}>
+export const AuthCard = ({ eyebrow, title, subtitle, children, footer, className = "" }: { eyebrow?: string; title: string; subtitle?: string; children: ReactNode; footer?: ReactNode; className?: string }): JSX.Element => (
+  <motion.section className={`auth-card ${className}`.trim()} initial={{ opacity: 0, y: 16, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.45, ease: "easeOut" }}>
     <div className="auth-card-heading">
       {eyebrow && <span className="eyebrow">{eyebrow}</span>}
       <h1>{title}</h1>

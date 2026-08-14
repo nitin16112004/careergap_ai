@@ -430,3 +430,72 @@ variables documented in `backend/.env.example`, including the server-only
   build, and local HTTP checks passed.
 - Pending product work: resume-first onboarding, dashboard, resume upload and
   parsing, AI/RAG, roadmaps, reminders, payments, and admin workflows.
+
+## Phase 5 - Resume Upload And AI Parser Foundation
+
+Date: 2026-08-14
+
+### Implementation Plan
+
+1. Keep the existing authenticated architecture and Supabase schema contract.
+2. Add protected PDF/DOCX upload, private Storage metadata, ownership checks,
+   signed URLs, and Redis upload limits.
+3. Add an explicit BullMQ parsing-job endpoint and retrying worker.
+4. Add a FastAPI parser boundary and an editable resume review UI.
+5. Add focused local tests, setup documentation, and verification notes.
+
+### What Was Built
+
+- Added protected `/api/v1/resumes` upload, process, get, and review-update
+  APIs with a five-megabyte PDF/DOCX limit, binary signature validation, user
+  ownership checks, private signed URLs, and a per-user upload limit.
+- Reused the existing private `resumes` bucket and `resumes` table. The schema
+  uses `pending`, `processing`, `completed`, and `failed` parser states.
+- Added `resumeParsingQueue` processing with three retry attempts. The worker
+  downloads the private object, calls FastAPI, and persists extracted data.
+- Added a FastAPI `POST /parse-resume` endpoint for PDF/DOCX text extraction,
+  contact details, skills, section content, and public profile links.
+- Added protected resume upload and editable review routes with drag-and-drop,
+  validation, progress, processing, success, and error states.
+- Added `RESUME_PARSER_SETUP.md`, backend service tests, frontend onboarding
+  tests, and AI parser tests.
+
+### Files Created Or Modified
+
+- `backend/src/controllers/resume.controller.ts`
+- `backend/src/routes/resume.routes.ts`
+- `backend/src/services/resume.service.ts`
+- `backend/src/services/resume-rate-limit.service.ts`
+- `backend/src/middleware/resume-upload.middleware.ts`
+- `backend/src/jobs/resume-processing.worker.ts`
+- `backend/src/types/resume.ts`
+- `backend/src/validators/resume.validators.ts`
+- `backend/src/services/resume.service.test.ts`
+- `ai-service/app/main.py`
+- `ai-service/app/parser.py`
+- `ai-service/tests/test_parser.py`
+- `frontend/src/pages/onboarding/ResumeUploadPage.tsx`
+- `frontend/src/pages/onboarding/ReviewProfilePage.tsx`
+- `frontend/src/components/resume/*`
+- `frontend/src/pages/onboarding/ResumeOnboarding.test.tsx`
+- `RESUME_PARSER_SETUP.md`
+
+### Testing Results
+
+- Backend and frontend TypeScript checks pass.
+- Backend mocked service tests cover invalid file rejection, Storage upload,
+  metadata ordering, queue creation, and processing state transition.
+- Frontend component tests cover unsupported-file validation, upload loading,
+  upload errors, and the populated editable review screen.
+- AI tests cover structured text parsing and endpoint-level invalid signature
+  and maximum-file-size rejection.
+- Live Supabase Storage, Redis, authentication, queue worker, and production
+  AI-service integration remain pending environment credentials.
+
+### Pending Tasks
+
+- Run the documented flow against a configured Supabase project and Redis.
+- Add final onboarding profile persistence, target role selection, and success
+  routing in their dedicated onboarding phase.
+- Keep ATS generation, RAG, roadmap, dashboard, reminders, payments, and
+  unrelated product modules out of this feature branch.

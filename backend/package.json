@@ -8,6 +8,9 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
+    "worker": "tsx src/jobs/resume-processing.worker.ts",
+    "worker:start": "node dist/jobs/resume-processing.worker.js",
+    "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "check": "npm run typecheck"
   },
@@ -22,6 +25,7 @@
     "express": "^5.1.0",
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.1.0",
+    "multer": "^2.0.2",
     "pino": "^9.7.0",
     "pino-http": "^10.4.0",
     "rate-limit-redis": "^4.2.0",
@@ -31,8 +35,10 @@
   "devDependencies": {
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.1",
+    "@types/multer": "^2.0.0",
     "@types/node": "^22.15.21",
     "tsx": "^4.19.4",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.10"
   }
 }
