@@ -40,15 +40,27 @@ Protected endpoints under `/api/v1/roadmap`:
 - `GET /`
 - `GET /:roadmapId`
 - `PATCH /:roadmapId`
+- `PATCH /:roadmapId/tasks/:taskId/complete`
 - `DELETE /:roadmapId`
+
+## Frontend roadmap experience
+
+- Authenticated users can open the roadmap page at `/roadmap`.
+- The page loads the user's latest roadmap and renders the week/task breakdown.
+- Each task supports a completion action that sends the authenticated completion call to the backend.
+- Progress recalculation is driven by the total completed tasks and updates the roadmap summary without a page reload.
 
 ## Local validation
 
 ```powershell
 cd backend
-npm run test -- --run src/services/roadmap.service.test.ts
+npx vitest run src/services/roadmap.service.test.ts
+npm run typecheck
+npm run build
+
+cd ../frontend
 npm run typecheck
 npm run build
 ```
 
-This roadmap feature does not implement weekly reminder emails, payments, job marketplace, or dashboard expansion. It stays intentionally focused on the retrieval-grounded roadmap generation flow.
+This roadmap feature does not implement weekly reminder emails, payments, job marketplace, or dashboard expansion. It stays intentionally focused on the retrieval-grounded roadmap generation flow and the user-owned task progress experience.

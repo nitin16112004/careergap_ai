@@ -153,16 +153,19 @@ Date: 2026-08-14
 
 - Added the roadmap data contract in `backend/src/types/roadmap.ts`.
 - Added `backend/src/services/roadmap.service.ts` with profile + skill-gap + knowledge-base retrieval logic and strict validation before persistence.
-- Added `backend/src/controllers/roadmap.controller.ts` and `backend/src/routes/roadmap.routes.ts` for protected roadmap generation and retrieval.
+- Added `backend/src/controllers/roadmap.controller.ts` and `backend/src/routes/roadmap.routes.ts` for protected roadmap generation, retrieval, and task completion updates.
 - Wired the route into `backend/src/routes/v1.routes.ts` at `/api/v1/roadmap`.
-- Added a regression test in `backend/src/services/roadmap.service.test.ts` to ensure real-user data is used and no fabricated facts are introduced.
+- Added a protected roadmap page in `frontend/src/pages/RoadmapPage.tsx` and connected it via `frontend/src/App.tsx`.
+- Added the roadmap frontend service and type support in `frontend/src/services/roadmap.service.ts` and `frontend/src/types/roadmap.ts`.
+- Added a regression test in `backend/src/services/roadmap.service.test.ts` covering real-user data grounding and retrieval-based roadmap retrieval.
 - Added roadmap environment documentation in `RAG_ROADMAP_SETUP.md`.
 
 ### Verification Completed
 
-- Roadmap regression test was created first and failed before implementation due to the missing module.
-- The roadmap implementation is now wired into the backend route set.
-- Backend typecheck and build checks are pending final verification at the completion of the feature work.
+- Roadmap regression tests were created first and the missing module gap was reproduced before the feature fix.
+- The roadmap backend is now wired into the protected route set and supports authenticated task completion with ownership-based progress recalculation.
+- Backend and frontend typecheck checks pass.
+- Backend and frontend production builds pass.
 
 ### Files Created Or Modified
 
@@ -173,6 +176,12 @@ Date: 2026-08-14
 - `backend/src/services/roadmap.service.test.ts`
 - `backend/src/types/roadmap.ts`
 - `backend/src/validators/roadmap.validators.ts`
+- `frontend/src/App.tsx`
+- `frontend/src/pages/AuthNextStepPage.tsx`
+- `frontend/src/pages/RoadmapPage.tsx`
+- `frontend/src/services/roadmap.service.ts`
+- `frontend/src/styles.css`
+- `frontend/src/types/roadmap.ts`
 - `RAG_ROADMAP_SETUP.md`
 
 ## Phase 1 - Supabase Setup And Database Foundation

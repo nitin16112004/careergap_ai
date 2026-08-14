@@ -15,6 +15,7 @@ export const AuthNextStepPage = (): JSX.Element => {
       <div className="next-step-panel"><span className="next-step-icon"><Sparkles size={25} /></span><div><h2>{profile?.full_name ? `Welcome, ${profile.full_name.split(" ")[0]}.` : "Welcome to CareerGuid AI."}</h2><p>{user?.email} is securely connected. Your next action will be to add a resume and let the platform map your strengths.</p></div></div>
       <div className="next-step-actions">
         {!isAdmin && <Link to="/onboarding/upload-resume" className="button button-primary">Continue when onboarding is available <ArrowRight size={16} /></Link>}
+        {!isAdmin && <Link to="/roadmap" className="button button-secondary">Open roadmap</Link>}
         <Button variant="secondary" onClick={() => { void signOut(); }}><LogOut size={16} /> Sign out</Button>
       </div>
       <p className="scope-note"><Compass size={14} /> No resume, dashboard, AI, or payment features are activated in this authentication release.</p>
