@@ -1,7 +1,15 @@
 from __future__ import annotations
 
+from pathlib import Path
+import sys
+
 from fastapi.testclient import TestClient
 import pytest
+
+# GitHub Actions invokes the pytest console script. Make the ai-service root an
+# explicit import root so these HTTP contract tests do not depend on runner
+# sys.path behavior.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import app.main as main
 from app.rag import (
