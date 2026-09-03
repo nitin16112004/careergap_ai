@@ -9,7 +9,8 @@ const actorIdFrom = (request: Request): string => {
 };
 
 const idParam = (request: Request, key: string): string => {
-  const value = request.params[key];
+  const raw = request.params[key];
+  const value = Array.isArray(raw) ? raw[0] : raw;
   if (!value) throw new HttpError(400, `A valid ${key} is required.`, "ADMIN_ID_REQUIRED");
   return value;
 };
