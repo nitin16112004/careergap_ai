@@ -58,12 +58,13 @@ describe("billingPaymentVerificationService.verifyRazorpayAndActivate", () => {
 
   it("rejects verification when the checkout transaction is not owned by the user", async () => {
     mocked.maybeSingle.mockResolvedValue({ data: null, error: null });
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
 
     await expect(billingPaymentVerificationService.verifyRazorpayAndActivate("user-1", input)).rejects.toMatchObject({
       statusCode: 404,
       code: "BILLING_TRANSACTION_NOT_FOUND",
     });
-    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("does not activate an authorised payment that has not been captured", async () => {
