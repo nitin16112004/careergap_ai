@@ -31,6 +31,8 @@ export const onboardingProfileSchema = z.object({
     resumeId: z.string().uuid().optional(),
     fieldSources: z.record(z.enum(["resume", "manual", "ai", "system"])).optional(),
   }),
+  query: z.record(z.unknown()).default({}),
+  params: z.record(z.unknown()).default({}),
 });
 
 export type OnboardingProfileInput = z.infer<typeof onboardingProfileSchema>["body"];
