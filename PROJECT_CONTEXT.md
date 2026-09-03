@@ -31,7 +31,8 @@ Primary journey:
 10. Complete roadmap tasks and track progress.
 11. Receive automatic roadmap reminders when appropriate.
 12. Improve an ATS-oriented resume without fabricating user facts.
-13. Continue into billing, full admin, public pages, deployment, and polish.
+13. Enforce plan usage and support explicit billing/upgrade flows.
+14. Continue into full admin, public pages, deployment, and polish.
 
 Every product screen should answer: **what should the user do next?**
 
@@ -58,6 +59,7 @@ Dependent phase branches:
 - `feat/rag-v1-2` — Version 1.2 true RAG, draft PR #3 targeting ATS.
 - `feat/v1-3-hardening` — Version 1.3 production hardening, draft PR #5 targeting RAG.
 - `feat/v1-4-reminders` — Version 1.4 progress/reminder automation targeting Version 1.3.
+- `feat/billing-upgrade` — documented Phase 14 payment/upgrade flow targeting Version 1.4.
 
 Do not flatten these phase boundaries only to simplify history. Keep contracts reviewable and do not merge dependent phases out of order.
 
@@ -238,6 +240,70 @@ Default Compose now contains:
 
 Reminder/email processes remain internal services and share the same Supabase/Redis contracts as the backend.
 
+### Phase 14 payment + upgrade
+
+Implemented on `feat/billing-upgrade` as a direct descendant of Version 1.4.
+
+#### Plans and usage
+
+- Canonical `plans`, `subscriptions`, `payment_transactions`, and `usage_counters` tables are used.
+- Seeded Free, Pro, and Premium plans carry monthly/yearly prices and documented usage-limit columns.
+- `consume_plan_usage(...)` atomically locks/creates the monthly counter before incrementing it.
+- Limit exhaustion returns HTTP `402` with `PLAN_LIMIT_REACHED`.
+- Resume upload, roadmap generation, and ATS resume generation reserve metered usage before work starts.
+- Synchronous failures refund the reserved unit.
+- Terminal failed async RAG generation calls `refund_rag_usage_once(...)` so the original month is refunded exactly once.
+
+#### Paid entitlements
+
+An active Pro/Premium subscription is required for current paid feature gates:
+
+- true RAG/advanced roadmap generation
+- ATS PDF/DOCX download
+- weekly reminder-email entitlement selection
+
+Expired or missing paid subscriptions resolve back to the Free plan.
+
+#### Provider/payment boundary
+
+- Razorpay order checkout is supported for INR plans.
+- Razorpay browser payment signatures are verified server-side before activation.
+- Razorpay webhook signatures are verified from the preserved raw request body.
+- Stripe hosted Checkout is supported in subscription mode using configured Price IDs.
+- Stripe webhook signatures include timestamp tolerance validation.
+- `billing_webhook_events` provides provider-event idempotency and failed-event retry state.
+- `activate_paid_subscription(...)` locks the checkout transaction so browser callback and webhook activation can race safely.
+- Payment failure does not grant paid entitlement.
+- Subscription cancellation/payment-failure state is persisted.
+
+#### Billing APIs
+
+Public/provider-authenticated:
+
+- `GET /api/v1/billing/plans`
+- `POST /api/v1/billing/webhook`
+- `POST /api/v1/billing/webhook/:provider`
+
+Authenticated user:
+
+- `GET /api/v1/billing/current-plan`
+- `GET /api/v1/billing/history`
+- `POST /api/v1/billing/create-checkout`
+- `POST /api/v1/billing/verify-razorpay`
+- `POST /api/v1/billing/cancel`
+
+#### Frontend
+
+- `/billing` shows current plan and monthly usage.
+- Pricing/upgrade actions support monthly/yearly paid-plan selection.
+- Provider checkout state and explicit errors are surfaced.
+- Billing history is backed by persisted payment transactions.
+- Cancellation state remains visible to the user.
+
+#### Setup guide
+
+See `BILLING_PAYMENT_SETUP.md` for migrations, provider environment variables, webhook endpoints, live sandbox/provider testing, and the release-validation boundary.
+
 ## Security / Integrity Rules
 
 - Verify Supabase JWTs on protected APIs.
@@ -246,14 +312,16 @@ Reminder/email processes remain internal services and share the same Supabase/Re
 - Check ownership before service-role user-data reads/writes.
 - Validate resume type/signature/size.
 - Use Redis-backed limits for security/cost-sensitive actions.
-- Never commit Supabase/Redis/LLM/email secrets.
+- Never commit Supabase/Redis/LLM/email/payment secrets.
 - Never fabricate ATS resume facts.
 - Treat LLM output as untrusted until validated.
 - Never label deterministic generation as RAG.
 - Never silently turn RAG failure into fake RAG success.
 - Do not expose scheduler-only reminder creation to normal users.
-- Use DB-level reminder dedupe, not only in-memory checks.
-- Do not log JWTs/passwords/OTPs/secrets or unnecessary sensitive profile data.
+- Use DB-level reminder and billing-webhook idempotency, not only in-memory checks.
+- Verify payment-provider signatures before changing subscription state.
+- Do not grant user JWTs direct execution of service-role billing enforcement RPCs.
+- Do not log JWTs/passwords/OTPs/secrets or unnecessary sensitive profile/payment data.
 
 ## Validation Standard
 
@@ -292,6 +360,11 @@ Before a real release, explicitly live-validate:
 - reminder duplicate prevention
 - real Resend sender/API delivery
 - failed-email retries + dead-letter state
+- Razorpay and/or Stripe sandbox/live checkout
+- payment signature verification + webhook idempotency
+- payment failure/expiry/cancellation transitions
+- plan usage enforcement + refund behavior
+- billing ownership/history visibility
 - centralized logs/error tracking/alerts
 - queue backlog alerts
 - backup/recovery procedures
@@ -301,15 +374,15 @@ See:
 - `RAG_ROADMAP_SETUP.md`
 - `V1_3_PRODUCTION_HARDENING.md`
 - `V1_4_REMINDERS_SETUP.md`
+- `BILLING_PAYMENT_SETUP.md`
 
 ## Remaining Documented Build Order
 
-1. Live-validate Versions 1.0–1.4 in a real configured environment.
-2. Billing/payment + usage enforcement.
-3. Complete admin application beyond current KB/ops/reminder APIs.
-4. Public landing/features/pricing pages.
-5. Remaining profile/billing/settings product surfaces.
-6. Broader integration/E2E testing and release automation.
-7. Centralized production monitoring and final UX/performance/accessibility polish.
+1. Live-validate Versions 1.0–1.4 and the payment/upgrade phase in a real configured environment, using sandbox/test payment providers before live mode.
+2. Complete the documented admin application beyond current KB/ops/reminder APIs.
+3. Build public landing/features/pricing pages.
+4. Complete remaining profile/settings product surfaces.
+5. Broaden integration/E2E testing and release automation.
+6. Add centralized production monitoring and finish UX/performance/accessibility polish.
 
-Do not treat a green repository CI run as proof that Supabase, RAG providers, transactional email, DNS/TLS, or production monitoring are configured correctly.
+Do not treat a green repository CI run as proof that Supabase, RAG providers, transactional email, payment providers, DNS/TLS, or production monitoring are configured correctly.
