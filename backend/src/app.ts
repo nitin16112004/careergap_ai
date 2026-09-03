@@ -1,4 +1,4 @@
-import express from "express";
+import express, { type Request } from "express";
 import { getEnv } from "./config/env";
 import { corsMiddleware } from "./middleware/cors.middleware";
 import { errorMiddleware, notFoundMiddleware } from "./middleware/error.middleware";
@@ -18,8 +18,9 @@ app.use(corsMiddleware);
 app.use(express.json({
   limit: "1mb",
   verify: (request, _response, buffer) => {
-    if (request.originalUrl.includes("/billing/webhook")) {
-      request.rawBody = Buffer.from(buffer);
+    const expressRequest = request as Request;
+    if (expressRequest.originalUrl.includes("/billing/webhook")) {
+      expressRequest.rawBody = Buffer.from(buffer);
     }
   },
 }));
