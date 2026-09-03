@@ -21,6 +21,7 @@ export interface TransactionalEmailRequest {
   subject: string;
   html: string;
   text: string;
+  idempotencyKey?: string;
 }
 
 export interface TransactionalEmailResult {
@@ -60,7 +61,7 @@ export const emailService = {
         throw new HttpError(503, "Email provider is not configured.", "EMAIL_PROVIDER_NOT_CONFIGURED", false);
       }
       const providerMessageId = `console-${Date.now()}`;
-      logger.info({ providerMessageId, subject: input.subject }, "development email delivery simulated");
+      logger.info({ providerMessageId, subject: input.subject, idempotencyKey: input.idempotencyKey }, "development email delivery simulated");
       return { provider: "console", providerMessageId };
     }
 
@@ -71,12 +72,15 @@ export const emailService = {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), EMAIL_TIMEOUT_MS);
     try {
+      const headers: Record<string, string> = {
+        authorization: `Bearer ${env.EMAIL_PROVIDER_API_KEY}`,
+        "content-type": "application/json",
+      };
+      if (input.idempotencyKey?.trim()) headers["idempotency-key"] = input.idempotencyKey.slice(0, 256);
+
       const response = await fetch(`${env.EMAIL_PROVIDER_BASE_URL.replace(/\/$/, "")}/emails`, {
         method: "POST",
-        headers: {
-          authorization: `Bearer ${env.EMAIL_PROVIDER_API_KEY}`,
-          "content-type": "application/json",
-        },
+        headers,
         body: JSON.stringify({
           from: env.EMAIL_FROM,
           to: [input.to],
