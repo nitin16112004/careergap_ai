@@ -35,6 +35,27 @@ export interface RoadmapTaskCompletionResult {
     }>;
 }
 
+export interface RoadmapProgressResult {
+    roadmapId: string;
+    progressPercentage: number;
+    expectedProgressPercentage: number;
+    totalTasks: number;
+    completedTasks: number;
+    pendingTasks: number;
+    skippedTasks: number;
+    overdueTasks: number;
+    currentWeek: {
+        id: string;
+        weekNumber: number;
+        title: string;
+        startDate: string | null;
+        dueDate: string | null;
+        pendingTasks: number;
+        overdueTasks: number;
+    } | null;
+    behindSchedule: boolean;
+}
+
 export interface RoadmapGenerationInput {
     skillAnalysisId?: string;
     roleId?: string;
@@ -91,6 +112,10 @@ export const roadmapService = {
 
     async get(roadmapId: string): Promise<RoadmapRecord> {
         return apiRequest<RoadmapRecord>(`/roadmap/${roadmapId}`);
+    },
+
+    async progress(roadmapId: string): Promise<RoadmapProgressResult> {
+        return apiRequest<RoadmapProgressResult>(`/roadmap/${roadmapId}/progress`);
     },
 
     async updateTaskStatus(roadmapId: string, taskId: string, status: "pending" | "completed" | "skipped" | "overdue"): Promise<RoadmapTaskCompletionResult> {

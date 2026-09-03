@@ -18,6 +18,7 @@ const SkillGapPage = lazy(() => import("./pages/SkillGapPage").then((module) => 
 const ResumeBuilderPage = lazy(() => import("./pages/resume-builder/ResumeBuilderPage").then((module) => ({ default: module.ResumeBuilderPage })));
 const ResumeBuilderPreviewPage = lazy(() => import("./pages/resume-builder/ResumeBuilderPreviewPage").then((module) => ({ default: module.ResumeBuilderPreviewPage })));
 const RoadmapPage = lazy(() => import("./pages/RoadmapPage").then((module) => ({ default: module.RoadmapPage })));
+const SettingsPage = lazy(() => import("./pages/SettingsPage").then((module) => ({ default: module.SettingsPage })));
 
 export const App = (): JSX.Element => (
   <Suspense fallback={<FullPageLoader label="Loading your secure workspace..." />}>
@@ -40,6 +41,8 @@ export const App = (): JSX.Element => (
         <Route path="/resume-builder/:id" element={<ResumeBuilderPage />} />
         <Route path="/resume-builder/:id/preview" element={<ResumeBuilderPreviewPage />} />
         <Route path="/roadmap" element={<RoadmapPage />} />
+        <Route path="/roadmap/:roadmapId" element={<RoadmapPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
         <Route path="/admin" element={<AuthNextStepPage />} />
       </Route>
 

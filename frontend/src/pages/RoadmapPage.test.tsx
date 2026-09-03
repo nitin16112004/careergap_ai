@@ -48,15 +48,71 @@ const roadmap = {
     ],
 };
 
+const pendingProgress = {
+    roadmapId: "roadmap-123",
+    progressPercentage: 50,
+    expectedProgressPercentage: 0,
+    totalTasks: 1,
+    completedTasks: 0,
+    pendingTasks: 1,
+    skippedTasks: 0,
+    overdueTasks: 1,
+    currentWeek: {
+        id: "week-1",
+        weekNumber: 1,
+        title: "Week 1: Testing",
+        startDate: "2026-08-14",
+        dueDate: "2026-08-21",
+        pendingTasks: 1,
+        overdueTasks: 1,
+    },
+    behindSchedule: true,
+};
+
+const completedProgress = {
+    ...pendingProgress,
+    progressPercentage: 100,
+    completedTasks: 1,
+    pendingTasks: 0,
+    overdueTasks: 0,
+    currentWeek: {
+        ...pendingProgress.currentWeek,
+        pendingTasks: 0,
+        overdueTasks: 0,
+    },
+    behindSchedule: false,
+};
+
+const reminderStatus = {
+    preferences: {
+        emailEnabled: true,
+        weeklyPendingEnabled: true,
+        inactiveEnabled: true,
+        motivationalEnabled: true,
+    },
+    lastReminder: null,
+    unreadNotifications: 0,
+    progress: pendingProgress,
+};
+
 const roadmapServiceMock = vi.hoisted(() => ({
     list: vi.fn(),
     get: vi.fn(),
+    progress: vi.fn(),
     completeTask: vi.fn(),
     updateTaskStatus: vi.fn(),
 }));
 
+const reminderServiceMock = vi.hoisted(() => ({
+    status: vi.fn(),
+}));
+
 vi.mock("../services/roadmap.service", () => ({
     roadmapService: roadmapServiceMock,
+}));
+
+vi.mock("../services/reminder.service", () => ({
+    reminderService: reminderServiceMock,
 }));
 
 const renderPage = (initialEntry: string = "/roadmap") => render(
@@ -73,6 +129,8 @@ describe("RoadmapPage", () => {
         vi.clearAllMocks();
         roadmapServiceMock.list.mockResolvedValue([{ id: "roadmap-123", title: "Frontend Engineer Roadmap", description: "A roadmap built from your current skills and target role.", duration_weeks: 2, progress_percentage: 50, generated_by: "basic_template", ai_response: roadmap.ai_response, is_active: true, user_id: "user-1", skill_analysis_id: "analysis-1", role_id: "role-1", created_at: "2026-08-14", updated_at: "2026-08-14" }]);
         roadmapServiceMock.get.mockResolvedValue(roadmap);
+        roadmapServiceMock.progress.mockResolvedValue(pendingProgress);
+        reminderServiceMock.status.mockResolvedValue(reminderStatus);
         roadmapServiceMock.updateTaskStatus.mockResolvedValue({
             ...roadmap,
             progress_percentage: 100,
@@ -89,9 +147,17 @@ describe("RoadmapPage", () => {
         expect(await screen.findByRole("heading", { name: "Frontend Engineer" })).toBeInTheDocument();
         expect(screen.getByText("Testing")).toBeInTheDocument();
         expect(screen.getByText("System Design")).toBeInTheDocument();
+        expect(roadmapServiceMock.progress).toHaveBeenCalledWith("roadmap-123");
+        expect(reminderServiceMock.status).toHaveBeenCalled();
     });
 
     it("updates the task status and progress when the user completes a task", async () => {
+        roadmapServiceMock.progress
+            .mockResolvedValueOnce(pendingProgress)
+            .mockResolvedValueOnce(completedProgress);
+        reminderServiceMock.status
+            .mockResolvedValueOnce(reminderStatus)
+            .mockResolvedValueOnce({ ...reminderStatus, progress: completedProgress });
         renderPage();
 
         const completeButton = await screen.findByRole("button", { name: /complete write unit tests for a react feature/i });
@@ -101,6 +167,7 @@ describe("RoadmapPage", () => {
             expect(roadmapServiceMock.updateTaskStatus).toHaveBeenCalledWith("roadmap-123", "task-1", "completed");
         });
         expect(await screen.findByText("Task completed")).toBeInTheDocument();
+        expect(roadmapServiceMock.progress).toHaveBeenCalledTimes(2);
     });
 
     it("handles the empty state when no roadmap has been generated yet", async () => {
@@ -109,5 +176,7 @@ describe("RoadmapPage", () => {
 
         expect(await screen.findByRole("heading", { name: "No roadmap yet" })).toBeInTheDocument();
         expect(screen.getByRole("link", { name: "Analyze skill gap" })).toHaveAttribute("href", "/skill-gap");
+        expect(roadmapServiceMock.progress).not.toHaveBeenCalled();
+        expect(reminderServiceMock.status).not.toHaveBeenCalled();
     });
 });

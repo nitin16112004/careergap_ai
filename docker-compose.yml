@@ -16,6 +16,16 @@ x-backend-environment: &backend-environment
   SHUTDOWN_TIMEOUT_MS: ${SHUTDOWN_TIMEOUT_MS:-10000}
   TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
   REDIS_CONNECT_TIMEOUT_MS: ${REDIS_CONNECT_TIMEOUT_MS:-5000}
+  EMAIL_PROVIDER: ${EMAIL_PROVIDER:-console}
+  EMAIL_PROVIDER_BASE_URL: ${EMAIL_PROVIDER_BASE_URL:-https://api.resend.com}
+  EMAIL_PROVIDER_API_KEY: ${EMAIL_PROVIDER_API_KEY:-}
+  EMAIL_FROM: ${EMAIL_FROM:-}
+  REMINDER_CRON_PATTERN: ${REMINDER_CRON_PATTERN:-0 0 9 * * 1}
+  REMINDER_CRON_TIMEZONE: ${REMINDER_CRON_TIMEZONE:-UTC}
+  REMINDER_INACTIVE_DAYS: ${REMINDER_INACTIVE_DAYS:-7}
+  REMINDER_SCAN_BATCH_SIZE: ${REMINDER_SCAN_BATCH_SIZE:-500}
+  REMINDER_EMAIL_JOB_ATTEMPTS: ${REMINDER_EMAIL_JOB_ATTEMPTS:-3}
+  ACTIVITY_TOUCH_INTERVAL_SECONDS: ${ACTIVITY_TOUCH_INTERVAL_SECONDS:-300}
 
 x-service-defaults: &service-defaults
   restart: unless-stopped
@@ -95,6 +105,26 @@ services:
       redis:
         condition: service_healthy
       ai-service:
+        condition: service_healthy
+
+  email-worker:
+    <<: *service-defaults
+    build:
+      context: ./backend
+    command: ["npm", "run", "email-worker:start"]
+    environment: *backend-environment
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  reminder-scheduler:
+    <<: *service-defaults
+    build:
+      context: ./backend
+    command: ["npm", "run", "reminder-scheduler:start"]
+    environment: *backend-environment
+    depends_on:
+      redis:
         condition: service_healthy
 
   ai-service:

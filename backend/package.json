@@ -12,12 +12,16 @@
     "worker:start": "node dist/jobs/resume-processing.worker.js",
     "roadmap-worker": "tsx src/jobs/roadmap-generation.worker.ts",
     "roadmap-worker:start": "node dist/jobs/roadmap-generation.worker.js",
+    "email-worker": "tsx src/jobs/email.worker.ts",
+    "email-worker:start": "node dist/jobs/email.worker.js",
+    "reminder-scheduler": "tsx src/jobs/weekly-reminder.scheduler.ts",
+    "reminder-scheduler:start": "node dist/jobs/weekly-reminder.scheduler.js",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "check": "npm run typecheck"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.50.0",

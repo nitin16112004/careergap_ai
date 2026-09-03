@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import type { RoadmapGenerationMode, RoadmapTaskStatus } from "../types/roadmap";
 import { roadmapService } from "../services/roadmap.service";
+import { roadmapProgressService } from "../services/roadmap-progress.service";
 import { ragRoadmapService } from "../services/rag-roadmap.service";
 import { HttpError } from "../utils/http-error";
 
@@ -85,6 +86,15 @@ export const getRoadmap = async (request: Request, response: Response, next: Nex
     }
 };
 
+export const getRoadmapProgress = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
+    try {
+        const result = await roadmapProgressService.get(userIdFrom(request), roadmapIdFrom(request));
+        response.json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const updateRoadmap = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
     try {
         const result = await roadmapService.update(userIdFrom(request), roadmapIdFrom(request), request.body);
@@ -136,6 +146,7 @@ export const roadmapController = {
     getRoadmapJob,
     listRoadmaps,
     getRoadmap,
+    getRoadmapProgress,
     updateRoadmap,
     deleteRoadmap,
     updateTaskStatus,

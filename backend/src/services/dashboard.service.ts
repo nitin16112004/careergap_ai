@@ -1,4 +1,5 @@
 import { getSupabaseStorageClient } from "../config/supabase";
+import { reminderService } from "./reminder.service";
 import { HttpError } from "../utils/http-error";
 
 export const dashboardService = {
@@ -31,12 +32,17 @@ export const dashboardService = {
 
     let pendingTasks = 0;
     let completedTasks = 0;
+    let overdueTasks = 0;
     if (roadmapResult.data?.id) {
-      const { data: tasks, error } = await client.from("roadmap_tasks").select("status").eq("roadmap_id", roadmapResult.data.id);
+      const { data: tasks, error } = await client.from("roadmap_tasks").select("status,due_date").eq("roadmap_id", roadmapResult.data.id);
       if (error) throw new HttpError(500, "Unable to load roadmap tasks.", "DASHBOARD_TASKS_FAILED", false);
-      pendingTasks = (tasks ?? []).filter((task) => task.status !== "completed").length;
+      const today = new Date().toISOString().slice(0, 10);
+      pendingTasks = (tasks ?? []).filter((task) => task.status !== "completed" && task.status !== "skipped").length;
       completedTasks = (tasks ?? []).filter((task) => task.status === "completed").length;
+      overdueTasks = (tasks ?? []).filter((task) => task.status !== "completed" && task.status !== "skipped" && typeof task.due_date === "string" && task.due_date < today).length;
     }
+
+    const reminder = await reminderService.getStatus(userId);
 
     return {
       profile,
@@ -46,7 +52,9 @@ export const dashboardService = {
       roadmap: roadmapResult.data,
       pendingTasks,
       completedTasks,
+      overdueTasks,
       generatedResume: generatedResumeResult.data,
+      reminder,
     };
   },
 };

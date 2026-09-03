@@ -2,9 +2,9 @@ name: Product CI
 
 on:
   pull_request:
-    branches: [dev, feat/mvp-backbone, feat/ats-v1-1, feat/rag-v1-2]
+    branches: [dev, feat/mvp-backbone, feat/ats-v1-1, feat/rag-v1-2, feat/v1-3-hardening]
   push:
-    branches: [feat/mvp-backbone, feat/ats-v1-1, feat/rag-v1-2, feat/v1-3-hardening]
+    branches: [feat/mvp-backbone, feat/ats-v1-1, feat/rag-v1-2, feat/v1-3-hardening, feat/v1-4-reminders]
 
 permissions:
   contents: read

@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { getSupabaseAnonClient } from "../config/supabase";
+import { activityService } from "../services/activity.service";
 import { HttpError } from "../utils/http-error";
 
 export const requireSupabaseSession = async (request: Request, _response: Response, next: NextFunction) => {
@@ -21,6 +22,8 @@ export const requireSupabaseSession = async (request: Request, _response: Respon
     };
     request.auth = authContext;
     request.user = authContext;
+
+    void activityService.touch(data.user.id);
     return next();
   } catch (error) {
     return next(error);
