@@ -51,3 +51,11 @@ export interface GeneratedResumeSnapshot {
     updated_at: string;
     analysis?: ResumeBuilderAnalysis;
 }
+
+export interface ResumeExportResult {
+    format: "pdf" | "docx";
+    storagePath: string;
+    url: string;
+    expiresIn: number;
+    fileName: string;
+}
