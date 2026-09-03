@@ -6,6 +6,7 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().url(),
   ALLOWED_ORIGINS: z.string().default(""),
   AI_SERVICE_URL: z.string().url().default("http://localhost:8000"),
+  AI_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(5_000).max(180_000).default(90_000),
   SUPABASE_URL: z.string().url(),
   SUPABASE_ANON_KEY: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
