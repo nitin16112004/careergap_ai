@@ -1,6 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetEnvForTests } from "../config/env";
-import { emailService } from "./email.service";
 
 const baseEnv = {
   FRONTEND_URL: "http://localhost:5173",
@@ -11,14 +10,27 @@ const baseEnv = {
   AI_SERVICE_URL: "http://localhost:8000",
 };
 
-beforeEach(() => {
+let emailService: typeof import("./email.service").emailService;
+
+const setBaseEnv = (): void => {
   for (const [key, value] of Object.entries(baseEnv)) vi.stubEnv(key, value);
   vi.stubEnv("NODE_ENV", "development");
   vi.stubEnv("EMAIL_PROVIDER", "console");
+  vi.stubEnv("EMAIL_PROVIDER_API_KEY", "");
+  vi.stubEnv("EMAIL_FROM", "");
   resetEnvForTests();
+};
+
+beforeAll(async () => {
+  setBaseEnv();
+  ({ emailService } = await import("./email.service"));
 });
 
-afterEach(() => {
+beforeEach(() => {
+  setBaseEnv();
+});
+
+afterAll(() => {
   vi.unstubAllEnvs();
   resetEnvForTests();
 });
@@ -53,8 +65,6 @@ describe("emailService reminder delivery", () => {
 
   it("requires transactional provider credentials before calling the network", async () => {
     vi.stubEnv("EMAIL_PROVIDER", "resend");
-    vi.stubEnv("EMAIL_PROVIDER_API_KEY", "");
-    vi.stubEnv("EMAIL_FROM", "");
     resetEnvForTests();
 
     const fetchSpy = vi.spyOn(globalThis, "fetch");
