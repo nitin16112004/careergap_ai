@@ -7,12 +7,19 @@ export const roadmapGenerateSchema = z.object({
         roleName: z.string().trim().min(1).max(200).optional(),
         targetRole: z.string().trim().min(1).max(200).optional(),
         durationWeeks: z.coerce.number().int().min(1).max(24).optional(),
+        generationMode: z.enum(["basic_template", "rag"]).default("basic_template"),
     }).refine((value) => Boolean(value.skillAnalysisId || value.roleId || value.roleName || value.targetRole), {
         message: "Provide a target role or skill analysis to generate a roadmap.",
         path: ["roleName"],
     }),
     query: z.record(z.unknown()).default({}),
     params: z.object({}).default({}),
+});
+
+export const roadmapJobIdSchema = z.object({
+    body: z.record(z.unknown()).default({}),
+    query: z.record(z.unknown()).default({}),
+    params: z.object({ jobId: z.string().uuid("A valid AI roadmap job id is required") }),
 });
 
 export const roadmapIdSchema = z.object({
