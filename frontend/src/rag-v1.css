@@ -1,0 +1,24 @@
+/* True RAG v1.2 interaction states. */
+.roadmap-generation-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.roadmap-generation-actions .button-motion-wrapper {
+  width: auto;
+}
+
+@media (max-width: 760px) {
+  .roadmap-generation-actions {
+    width: 100%;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .roadmap-generation-actions .button-motion-wrapper,
+  .roadmap-generation-actions .button {
+    width: 100%;
+  }
+}
