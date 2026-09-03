@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { getKnowledgeBaseIndexStatus, reindexKnowledgeBase } from "../controllers/admin-knowledge-base.controller";
+import { getQueueOperations, getRuntimeOperations } from "../controllers/admin-operations.controller";
 import { requireAdmin } from "../middleware/admin.middleware";
 import { requireSupabaseSession } from "../middleware/auth.middleware";
 import { validate } from "../middleware/validate.middleware";
@@ -10,5 +11,7 @@ export const createAdminRoutes = (): Router => {
   router.use(requireSupabaseSession, requireAdmin);
   router.get("/knowledge-base/index-status", getKnowledgeBaseIndexStatus);
   router.post("/knowledge-base/reindex", validate(knowledgeBaseReindexSchema), reindexKnowledgeBase);
+  router.get("/ops/queues", getQueueOperations);
+  router.get("/ops/runtime", getRuntimeOperations);
   return router;
 };
