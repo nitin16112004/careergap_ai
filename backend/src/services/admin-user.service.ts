@@ -29,6 +29,7 @@ export const adminUserService = {
       id: data.user.id,
       email: data.user.email ?? null,
       role: String(data.user.app_metadata?.role ?? "user"),
+      appMetadata: { ...(data.user.app_metadata ?? {}) },
       bannedUntil: data.user.banned_until ?? null,
       lastSignInAt: data.user.last_sign_in_at ?? null,
       createdAt: data.user.created_at,
@@ -39,8 +40,9 @@ export const adminUserService = {
     if (role === "user") requireDifferentUser(actorUserId, targetUserId, "remove admin access from");
     const client = getSupabaseServiceClient();
     const authState = await this.authState(targetUserId);
+    const nextAppMetadata = { ...authState.appMetadata, role };
     const { data, error } = await client.auth.admin.updateUserById(targetUserId, {
-      app_metadata: { role },
+      app_metadata: nextAppMetadata,
     });
     if (error || !data.user) throw new HttpError(500, "Unable to update auth role.", "ADMIN_USER_ROLE_AUTH_UPDATE_FAILED", false);
 
@@ -49,11 +51,17 @@ export const adminUserService = {
       updated_at: new Date().toISOString(),
     }).eq("id", targetUserId);
     if (profileError) {
-      await client.auth.admin.updateUserById(targetUserId, { app_metadata: { role: authState.role } }).catch(() => undefined);
+      await client.auth.admin.updateUserById(targetUserId, { app_metadata: authState.appMetadata }).catch(() => undefined);
       throw new HttpError(500, "Unable to synchronize profile role.", "ADMIN_USER_ROLE_PROFILE_UPDATE_FAILED", false);
     }
 
-    await audit(actorUserId, "user.role_changed", targetUserId, { role: authState.role }, { role });
+    await audit(
+      actorUserId,
+      "user.role_changed",
+      targetUserId,
+      { role: authState.role, appMetadata: authState.appMetadata },
+      { role, appMetadata: nextAppMetadata },
+    );
     return { userId: targetUserId, role };
   },
 
