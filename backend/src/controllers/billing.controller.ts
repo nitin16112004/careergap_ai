@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import type { BillingProvider } from "../types/billing";
+import { billingPaymentVerificationService } from "../services/billing-payment-verification.service";
 import { billingProviderService } from "../services/billing-provider.service";
 import { billingService } from "../services/billing.service";
 import { HttpError } from "../utils/http-error";
@@ -55,8 +56,8 @@ export const billingController = {
 
   async verifyRazorpay(request: Request, response: Response, next: NextFunction): Promise<void> {
     try {
-      await billingProviderService.verifyRazorpayPayment(userIdFrom(request), request.body);
-      response.json({ success: true, message: "Payment verified and plan activated." });
+      await billingPaymentVerificationService.verifyRazorpayAndActivate(userIdFrom(request), request.body);
+      response.json({ success: true, message: "Captured payment verified and plan activated." });
     } catch (error) {
       next(error);
     }
