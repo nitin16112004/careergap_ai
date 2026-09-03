@@ -35,7 +35,22 @@ export interface RoadmapTaskCompletionResult {
     }>;
 }
 
+export interface RoadmapGenerationInput {
+    skillAnalysisId?: string;
+    roleId?: string;
+    roleName?: string;
+    targetRole?: string;
+    durationWeeks?: number;
+}
+
 export const roadmapService = {
+    async generate(input: RoadmapGenerationInput): Promise<RoadmapRecord> {
+        return apiRequest<RoadmapRecord>("/roadmap/generate", {
+            method: "POST",
+            body: JSON.stringify(input),
+        });
+    },
+
     async list(): Promise<RoadmapRecord[]> {
         return apiRequest<RoadmapRecord[]>("/roadmap");
     },
