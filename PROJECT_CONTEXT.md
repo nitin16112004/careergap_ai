@@ -11,26 +11,27 @@ Product and implementation decisions must follow the six documents under `docume
 5. UI/UX Design Brief
 6. Web Flow Document
 
-Use the PRD for product behavior and MVP scope, Web Flow for journeys and redirects, UI/UX brief for presentation/accessibility, TRD for architecture/security/performance, Backend Schema for database ownership/RLS/storage, and Implementation Plan for build order.
+Use the PRD for product behavior/scope, Web Flow for journeys and redirects, UI/UX brief for presentation/accessibility, TRD for architecture/security/performance, Backend Schema for database ownership/RLS/storage, and Implementation Plan for build order.
 
 ## Product Definition
 
 CareerGuid AI (also referenced as SkillSight in the documentation) is a resume-first career guidance platform for students, freshers, bootcamp learners, and job seekers.
 
-The primary journey is:
+Primary journey:
 
 1. Sign up and verify email.
-2. Upload a PDF/DOCX resume.
+2. Upload PDF/DOCX resume.
 3. Parse profile details.
-4. Review and correct extracted data.
+4. Review/correct extracted data.
 5. Add target role and career preferences.
-6. Persist the final profile with source traceability.
-7. Compare current skills with role requirements.
+6. Persist profile with source traceability.
+7. Compare current skills against role requirements.
 8. Prioritize missing skills.
-9. Generate a deterministic or true-RAG week-wise roadmap.
+9. Generate deterministic or true-RAG weekly roadmap.
 10. Complete roadmap tasks and track progress.
-11. Improve an ATS-oriented resume without fabricating user facts.
-12. Continue into production hardening, reminders, billing, admin, public pages, and deployment.
+11. Receive automatic roadmap reminders when appropriate.
+12. Improve an ATS-oriented resume without fabricating user facts.
+13. Continue into billing, full admin, public pages, deployment, and polish.
 
 Every product screen should answer: **what should the user do next?**
 
@@ -41,214 +42,274 @@ Every product screen should answer: **what should the user do next?**
 - AI service: Python FastAPI.
 - Database/Auth/Storage: Supabase.
 - Vector retrieval: Supabase pgvector.
-- Queue/cache/rate limiting: Redis + BullMQ.
+- Queue/cache/rate limiting/scheduler state: Redis + BullMQ.
 - Deployment: Docker, Docker Compose, Nginx.
 
 MongoDB is not part of the documented architecture.
 
 ## Branch / Review Structure
 
-The stable development baseline remains `dev`.
+Stable development baseline: `dev`.
 
-Current implementation is deliberately split into dependent branches:
+Dependent phase branches:
 
-- `feat/mvp-backbone` — Version 1.0 MVP backbone, draft PR #1.
-- `feat/ats-v1-1` — Version 1.1 ATS, draft PR #2 targeting the MVP branch.
-- `feat/rag-v1-2` — Version 1.2 true RAG, draft PR #3 targeting the ATS branch.
-- `feat/v1-3-hardening` — Version 1.3 production hardening built on the RAG branch.
+- `feat/mvp-backbone` — Version 1.0 MVP, draft PR #1.
+- `feat/ats-v1-1` — Version 1.1 ATS, draft PR #2 targeting MVP.
+- `feat/rag-v1-2` — Version 1.2 true RAG, draft PR #3 targeting ATS.
+- `feat/v1-3-hardening` — Version 1.3 production hardening, draft PR #5 targeting RAG.
+- `feat/v1-4-reminders` — Version 1.4 progress/reminder automation targeting Version 1.3.
 
-Do not flatten these phase boundaries just to simplify history. Keep feature contracts independently reviewable until the dependency chain is ready to merge.
+Do not flatten these phase boundaries only to simplify history. Keep contracts reviewable and do not merge dependent phases out of order.
 
 ## Implemented Product Phases
 
-### Version 1.0 MVP backbone
+### Version 1.0 MVP
 
 - Supabase Auth + JWT-protected backend routes.
 - Verification, forgot/reset password, refresh, logout, `/me`.
 - Redis-backed auth rate limiting.
-- Private PDF/DOCX resume upload and validation.
-- BullMQ resume parsing flow.
+- Private PDF/DOCX resume upload/validation.
+- BullMQ resume parsing.
 - FastAPI deterministic resume extraction.
-- Resume review/edit and final onboarding.
+- Resume review/edit + final onboarding.
 - `profile_field_sources` traceability.
 - `onboarding_completed` route enforcement.
-- Job-role + weighted skill-gap analysis.
+- Job roles + weighted skill-gap analysis.
 - Persisted skill analyses/items.
-- Live dashboard summary/UI.
-- Honest `basic_template` weekly roadmap.
-- Roadmap task progress.
+- Live dashboard.
+- Honest `basic_template` roadmap.
+- Roadmap task completion/progress.
 
 ### Version 1.1 ATS
 
-- No fake minimum scoring or demo-score fallback.
-- Resume content grounded in reviewed user facts.
-- No invented employers, projects, education, certifications, or achievements.
+- No artificial score floor/demo fallback.
+- Content grounded in reviewed user facts.
+- No invented employers/projects/education/certifications/achievements.
 - Editable generated resume versions.
 - Private PDF/DOCX export.
-- Short-lived signed download URLs.
-- Regression tests for factual safety and export signatures.
+- Signed short-lived download URLs.
+- Regression tests for factual grounding and file signatures.
 
 ### Version 1.2 true RAG
 
 Pipeline:
 
-`profile + skill analysis + target role -> embedding -> pgvector similarity retrieval -> retrieved documents -> validated LLM roadmap -> BullMQ worker -> Supabase persistence`
+`profile + skill analysis + role -> embedding -> pgvector similarity retrieval -> retrieved knowledge -> validated LLM roadmap -> BullMQ worker -> Supabase persistence`
 
-Key guarantees:
+Guarantees:
 
-- `basic_template` and `rag` are separate truthful generation modes.
-- Provider configuration is explicit; missing provider credentials fail closed.
-- Embeddings must be 1536 finite values for the current schema.
-- Retrieved knowledge is constrained by a service-role-only vector RPC.
-- LLM output is validated by Pydantic and again by the backend before persistence.
-- Resource document IDs must come from retrieved context.
-- Empty retrieval fails with a real error rather than fake RAG fallback.
-- RAG runs asynchronously through `ai_jobs` + `roadmapGenerationQueue`.
-- Retry state/count is synchronized with `ai_jobs`.
-- `rag_queries` records retrieval/model/latency/error metadata.
-- Curated KB content is seeded without hard-coded embeddings.
-- Admin-only KB indexing endpoints generate embeddings using the configured provider.
-- Frontend exposes separate **Generate AI roadmap** and **Use basic plan** actions.
+- `basic_template` and `rag` are truthful separate modes.
+- Missing provider configuration fails closed.
+- Embeddings are exactly 1536 finite values for current schema.
+- Retrieval uses service-role-only pgvector RPC.
+- LLM output is validated by Pydantic and backend before persistence.
+- Resource references are restricted to retrieved context.
+- Empty retrieval returns a real RAG-not-ready error.
+- RAG is asynchronous through `ai_jobs` + `roadmapGenerationQueue`.
+- Retry state/count synchronizes with `ai_jobs`.
+- `rag_queries` records model/retrieval/latency/error metadata.
+- Curated KB seed contains no fake precomputed embeddings.
+- Admin-only KB indexing uses configured embedding provider.
+- Frontend offers separate **Generate AI roadmap** and **Use basic plan** actions.
 
 ### Version 1.3 production hardening
 
 Implemented on `feat/v1-3-hardening`:
 
-#### Observability
+- Structured Pino logging and sensitive-field redaction.
+- `X-Request-Id` correlation through request/response/error payloads.
+- Severity-aware HTTP logs.
+- Liveness + dependency-aware readiness endpoints.
+- DB/Redis/AI latency probes.
+- Production Helmet/CSP/HSTS/referrer/opener/resource policy.
+- Env-driven CORS allowlist and explicit denied-origin errors.
+- Trusted proxy configuration.
+- Redis reconnect/backoff/connect timeout and `rediss://` support.
+- Bounded backend/worker graceful shutdown.
+- Dead-letter records for exhausted resume/RAG jobs.
+- Admin runtime + queue operational summaries.
+- Production frontend image and SPA Nginx.
+- Public edge Nginx with backend/frontend internal networking.
+- Redis authenticated/internal by default.
+- Scale-friendly Compose without fixed `container_name` values.
+- CI gates for npm high-severity audits, typecheck/tests/build, Python dependency/compile/tests, Compose, Docker images, and Nginx syntax.
+- Dependabot for npm/pip/Actions/Docker.
 
-- Shared structured Pino logger.
-- Sensitive fields redacted: auth headers, cookies, passwords, OTPs, tokens, API-key/secret-like values, `Set-Cookie`.
-- Request correlation using validated incoming `X-Request-Id` or generated UUID.
-- Request ID returned in response headers and API error payloads.
-- Severity-aware HTTP logs: success `info`, 4xx `warn`, 5xx/errors `error`.
-- Admin runtime metrics endpoint for uptime, Node version, PID, and memory.
-- Admin queue metrics endpoint for waiting/active/completed/failed/delayed/paused jobs, including dead letters.
+### Version 1.4 progress + reminder automation
 
-#### Health/readiness
+Implemented on `feat/v1-4-reminders`:
 
-- `/api/health` and `/api/health/live` for liveness.
-- `/api/health/ready` for aggregated DB + Redis + AI readiness.
-- Individual DB/Redis/AI health endpoints retained.
-- Dependency latency included without exposing internal provider errors/secrets.
-- Configurable health-check timeout.
+#### Canonical progress
 
-#### Security
+- `GET /api/v1/roadmap/:roadmapId/progress`.
+- Calculates total/completed/pending/skipped/overdue tasks.
+- Detects current roadmap week from persisted week dates.
+- Calculates current-week pending/overdue work.
+- Calculates actual vs expected checkpoint progress.
+- Exposes `behindSchedule` without mutating task status merely because a due date passed.
+- Dashboard and roadmap reminder UX consume this same progress contract.
 
-- Production-oriented Helmet policy, CSP, HSTS, referrer/opener/resource protections.
-- Env-driven CORS allowlist using `FRONTEND_URL` + `ALLOWED_ORIGINS`.
-- Localhost auto-allow only outside production.
-- Explicit `403 / CORS_ORIGIN_DENIED` for blocked origins.
-- Configurable trusted-proxy hops.
-- Redis supports `rediss://` TLS connections.
-- Default Compose Redis is authenticated and not host-published.
+#### Activity tracking
 
-#### Runtime resilience
+- `profiles.last_activity_at` added through the Version 1.4 migration.
+- Authenticated API activity updates it through a Redis throttle rather than on every request.
+- Activity tracking fails open so transient tracking failure does not block user requests.
 
-- Redis bounded reconnect/backoff and connect timeout.
-- Backend bounded graceful shutdown and process-level fatal logging.
-- Resume and RAG workers use structured logs and bounded graceful shutdown.
-- Resume AI parsing call has a bounded request timeout.
-- Exhausted resume/RAG jobs create a `deadLetterQueue` record with operational metadata.
-- Intermediate RAG retries remain retryable rather than appearing as terminal failure.
+#### Reminder preferences and persistence
 
-#### Containers / edge
+- New `reminder_preferences` table with:
+  - master email toggle
+  - weekly-pending toggle
+  - inactivity toggle
+  - motivational toggle
+- User-owned RLS for preference reads/writes.
+- Scheduler reminder logs cannot be forged by normal direct-user RLS inserts.
+- `reminder_logs` stores durable dedupe key, reason, metadata, delivery status/error, sent time.
+- `notifications` and `email_logs` link back to reminder logs.
 
-Default production-like Compose services:
+#### Reminder policy
 
-- `edge` — public Nginx entrypoint
-- `frontend` — production Vite build served by internal Nginx
-- `backend` — internal Express API
-- `ai-service` — internal FastAPI service
+A weekly scan evaluates one newest active roadmap per user and selects at most one reminder using priority:
+
+1. `inactive_user` — no activity for configured inactivity period (default 7 days).
+2. `weekly_pending_task` — current roadmap week still has pending tasks.
+3. `motivational` — progress is behind expected checkpoint / overdue work exists.
+
+Master/per-type preference switches are respected.
+
+Deterministic dedupe keys plus PostgreSQL uniqueness protect against duplicate scans/retries/races. Weekly reminder dedupe remains schema-enforced as defense in depth.
+
+#### Scheduler + delivery
+
+- BullMQ `weeklyReminderQueue` uses durable Job Scheduler state in Redis.
+- Default schedule: Monday 09:00 in configured `REMINDER_CRON_TIMEZONE`.
+- Scheduler creates persisted reminder/notification/email records before email delivery.
+- Dedicated `emailQueue` worker handles transactional email asynchronously.
+- Resend-compatible provider boundary for real delivery.
+- Local `console` provider is allowed only outside production; production fails closed.
+- Email jobs retry with exponential backoff.
+- After provider acceptance, a Redis delivery receipt is saved before DB synchronization so a DB-sync retry can repair state without sending the email twice.
+- Exhausted email jobs write to the Version 1.3 `deadLetterQueue`.
+
+#### APIs
+
+User:
+
+- `GET /api/v1/reminders/status`
+- `GET /api/v1/reminders/preferences`
+- `PUT /api/v1/reminders/preferences`
+- `GET /api/v1/reminders/logs`
+- `GET /api/v1/notifications`
+- `PATCH /api/v1/notifications/read-all`
+- `PATCH /api/v1/notifications/:notificationId/read`
+- `GET /api/v1/roadmap/:roadmapId/progress`
+
+Admin-only:
+
+- `POST /api/v1/reminders/check-weekly`
+- `GET /api/v1/reminders/logs/:userId`
+
+Normal users do not get a manual "send reminder" capability.
+
+#### Frontend
+
+- `/settings` reminder preferences.
+- Recent reminder delivery history.
+- In-app notification history + unread count.
+- Exact `/roadmap/:roadmapId` route.
+- Dashboard reminder status, last reason/date, overdue counts, unread notifications.
+- Roadmap behind-schedule banner.
+- Current-week pending/overdue/expected progress.
+- Last reminder reason/date + link to reminder settings.
+
+#### Runtime topology
+
+Default Compose now contains:
+
+- `edge`
+- `frontend`
+- `backend`
+- `ai-service`
 - `resume-worker`
 - `roadmap-worker`
-- `redis` — internal authenticated Redis
+- `email-worker`
+- `reminder-scheduler`
+- `redis`
 
-Only `edge` publishes a host port. Fixed `container_name` values were removed because they block normal service scaling.
+Reminder/email processes remain internal services and share the same Supabase/Redis contracts as the backend.
 
-The real reminder scheduler is intentionally **not** faked in Version 1.3; it belongs to Version 1.4 with reminder/email logic.
+## Security / Integrity Rules
 
-#### CI / dependency hygiene
-
-Product CI now includes:
-
-- backend npm high-severity audit, typecheck, tests, build
-- frontend npm high-severity audit, typecheck, tests, build
-- AI-service `pip check`, compile, pytest
-- Docker Compose model validation
-- backend Docker build
-- frontend Docker build
-- AI-service Docker build
-- edge Nginx syntax validation
-
-Dependabot covers backend/frontend npm, AI-service pip, GitHub Actions, and the three Dockerfiles.
-
-## Current Protected API Additions
-
-### Health
-
-- `GET /api/health`
-- `GET /api/health/live`
-- `GET /api/health/ready`
-- `GET /api/health/db`
-- `GET /api/health/redis`
-- `GET /api/health/ai-service`
-
-### Admin RAG readiness
-
-- `GET /api/v1/admin/knowledge-base/index-status`
-- `POST /api/v1/admin/knowledge-base/reindex`
-
-### Admin operations
-
-- `GET /api/v1/admin/ops/queues`
-- `GET /api/v1/admin/ops/runtime`
-
-Admin operations endpoints use the existing Supabase session + admin-role middleware and are not public metrics endpoints.
-
-## Security and AI Integrity Rules
-
-- Verify Supabase JWTs on protected backend routes.
-- Keep service-role credentials server-only.
+- Verify Supabase JWTs on protected APIs.
+- Keep service-role and provider credentials server-only.
 - Keep RLS enabled for defense in depth.
-- Check ownership before service-role reads/writes.
-- Validate PDF/DOCX MIME, signature, and 5 MB product limit.
-- Use Redis-backed distributed limits for cost/security-sensitive APIs.
-- Never commit provider/Supabase/Redis/email secrets.
-- Never fabricate user resume facts.
-- Treat all AI output as untrusted until structurally validated.
-- Do not label deterministic/keyword generation as RAG.
-- Do not silently convert failed RAG into a successful fake AI result.
-- Restrict generated resource references to retrieved knowledge context.
-- Do not log full JWTs, passwords, OTPs, secrets, or unnecessary sensitive profile data.
+- Check ownership before service-role user-data reads/writes.
+- Validate resume type/signature/size.
+- Use Redis-backed limits for security/cost-sensitive actions.
+- Never commit Supabase/Redis/LLM/email secrets.
+- Never fabricate ATS resume facts.
+- Treat LLM output as untrusted until validated.
+- Never label deterministic generation as RAG.
+- Never silently turn RAG failure into fake RAG success.
+- Do not expose scheduler-only reminder creation to normal users.
+- Use DB-level reminder dedupe, not only in-memory checks.
+- Do not log JWTs/passwords/OTPs/secrets or unnecessary sensitive profile data.
 
-## Validation Boundary
+## Validation Standard
 
-Repository CI can prove code-level and image-level integrity; it cannot prove live external integration without credentials.
+Before merging a phase:
 
-Before a real production release, explicitly live-validate:
+- Backend high-severity audit passes.
+- Backend TypeScript typecheck passes.
+- Backend tests pass.
+- Backend production build passes.
+- Frontend high-severity audit passes.
+- Frontend TypeScript typecheck passes.
+- Frontend tests pass.
+- Frontend production build passes.
+- AI dependency/compile/tests pass when Python is in scope.
+- Compose model validates.
+- Backend/frontend/AI Docker images build.
+- Edge Nginx config validates.
+- Route ownership/admin/error/empty/success paths are tested where relevant.
+- External-service validation boundaries are stated honestly.
 
-- Supabase migrations and RLS/storage policies
-- auth/onboarding/skill-gap/dashboard flows
-- ATS private storage + PDF/DOCX downloads
+Repository CI does **not** prove live external integration.
+
+## Live Validation Boundary
+
+Before a real release, explicitly live-validate:
+
+- Supabase migrations + RLS/storage policies
+- auth/onboarding/skill-gap/dashboard
+- ATS private storage/PDF/DOCX
 - provider-backed RAG + KB indexing
 - Redis auth/TLS/private networking
-- edge HTTPS/domain configuration
-- `/api/health/ready` behind the deployed topology
-- worker processing and dead-letter monitoring
-- centralized log/error shipping
-- uptime and queue-backlog alerts
-- provider-specific backup/recovery procedures
+- HTTPS/domain configuration
+- deployed readiness
+- resume/RAG/email worker processing
+- weekly scheduler execution
+- reminder duplicate prevention
+- real Resend sender/API delivery
+- failed-email retries + dead-letter state
+- centralized logs/error tracking/alerts
+- queue backlog alerts
+- backup/recovery procedures
 
-See `V1_3_PRODUCTION_HARDENING.md` for the deployment checklist.
+See:
+
+- `RAG_ROADMAP_SETUP.md`
+- `V1_3_PRODUCTION_HARDENING.md`
+- `V1_4_REMINDERS_SETUP.md`
 
 ## Remaining Documented Build Order
 
-1. Live-validate Versions 1.0–1.3 in a real environment.
-2. Version 1.4 progress/reminder automation: scheduler, weekly reminder queue, email worker, logs, notification UX.
-3. Billing/payment and usage enforcement.
-4. Full admin application beyond current indexing/ops APIs.
-5. Public landing/features/pricing pages.
-6. Profile/settings/billing UX.
-7. Broader end-to-end/integration testing, release automation, centralized monitoring, and final polish.
+1. Live-validate Versions 1.0–1.4 in a real configured environment.
+2. Billing/payment + usage enforcement.
+3. Complete admin application beyond current KB/ops/reminder APIs.
+4. Public landing/features/pricing pages.
+5. Remaining profile/billing/settings product surfaces.
+6. Broader integration/E2E testing and release automation.
+7. Centralized production monitoring and final UX/performance/accessibility polish.
 
-Do not treat a green repository CI run as proof that Supabase, provider, email, DNS/TLS, or production monitoring is configured correctly.
+Do not treat a green repository CI run as proof that Supabase, RAG providers, transactional email, DNS/TLS, or production monitoring are configured correctly.
