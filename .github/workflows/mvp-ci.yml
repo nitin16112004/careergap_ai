@@ -79,7 +79,7 @@ jobs:
       - name: Dependency consistency
         run: pip check
       - name: Compile
-        run: python -m compileall app
+        run: python -m compileall -q app tests
       - name: Test
         run: pytest -q
 
@@ -89,12 +89,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
       - name: Validate Compose model
-        run: docker compose config >/tmp/compose-config.yml
+        run: docker compose config --quiet
       - name: Build backend image
-        run: docker build -f backend/Dockerfile -t careerguid-backend:ci .
+        run: docker build -t careerguid-ai-backend:ci ./backend
       - name: Build frontend image
-        run: docker build -f frontend/Dockerfile -t careerguid-frontend:ci .
-      - name: Build AI image
-        run: docker build -f ai-service/Dockerfile -t careerguid-ai:ci .
-      - name: Validate edge Nginx syntax
-        run: docker run --rm -v "$PWD/infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro" nginx:1.27-alpine nginx -t
+        run: docker build -t careerguid-ai-frontend:ci ./frontend
+      - name: Build AI service image
+        run: docker build -t careerguid-ai-service:ci ./ai-service
+      - name: Validate edge Nginx configuration
+        run: >-
+          docker run --rm
+          --add-host backend:127.0.0.1
+          --add-host frontend:127.0.0.1
+          -v "$PWD/infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro"
+          nginx:1.27-alpine nginx -t
