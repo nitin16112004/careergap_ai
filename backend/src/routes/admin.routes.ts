@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { getAdminAnalytics } from "../controllers/admin-analytics.controller";
 import { adminController } from "../controllers/admin.controller";
 import { getKnowledgeBaseIndexStatus, reindexKnowledgeBase } from "../controllers/admin-knowledge-base.controller";
 import { getQueueOperations, getRuntimeOperations } from "../controllers/admin-operations.controller";
@@ -21,7 +22,7 @@ export const createAdminRoutes = (): Router => {
   const router = Router();
   router.use(requireSupabaseSession, requireAdmin);
 
-  router.get("/analytics", adminController.analytics);
+  router.get("/analytics", getAdminAnalytics);
   router.get("/users", adminController.users);
   router.get("/users/:userId", adminController.user);
   router.get("/users/:userId/auth-state", adminUserController.authState);
