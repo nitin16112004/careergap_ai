@@ -10,6 +10,7 @@ export const createRoadmapRoutes = (): Router => {
     router.post("/generate", validate(roadmapGenerateSchema), roadmapController.generateRoadmap);
     router.get("/jobs/:jobId", validate(roadmapJobIdSchema), roadmapController.getRoadmapJob);
     router.get("/", roadmapController.listRoadmaps);
+    router.get("/:roadmapId/progress", validate(roadmapIdSchema), roadmapController.getRoadmapProgress);
     router.get("/:roadmapId", validate(roadmapIdSchema), roadmapController.getRoadmap);
     router.patch("/:roadmapId", validate(roadmapUpdateSchema), roadmapController.updateRoadmap);
     router.patch("/:roadmapId/tasks/:taskId", validate(roadmapTaskUpdateSchema), roadmapController.updateTaskStatus);
