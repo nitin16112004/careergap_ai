@@ -3,7 +3,7 @@ import { getSupabaseStorageClient } from "../config/supabase";
 import { HttpError } from "../utils/http-error";
 
 type EmbeddingResponse = { embedding: number[]; model: string };
-type KnowledgeDocument = { id: string; title: string; category: string; content: string };
+type KnowledgeDocument = { id: string; title: string; category: string; content: string; metadata: Record<string, unknown> | null };
 
 const embed = async (input: string): Promise<EmbeddingResponse> => {
   let response: Response;
@@ -53,7 +53,7 @@ export const knowledgeBaseService = {
     const limit = Math.max(1, Math.min(input.limit ?? 20, 50));
     let query = getSupabaseStorageClient()
       .from("knowledge_base_documents")
-      .select("id, title, category, content")
+      .select("id, title, category, content, metadata")
       .eq("is_active", true)
       .order("created_at", { ascending: true })
       .limit(limit);
@@ -72,6 +72,7 @@ export const knowledgeBaseService = {
         .update({
           embedding: result.embedding,
           metadata: {
+            ...(document.metadata ?? {}),
             embedding_model: result.model,
             embedding_dimension: result.embedding.length,
             embedded_at: new Date().toISOString(),
