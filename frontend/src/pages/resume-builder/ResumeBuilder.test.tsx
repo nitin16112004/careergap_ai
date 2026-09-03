@@ -176,7 +176,7 @@ describe("ResumeBuilderPreviewPage", () => {
 
   it("allows the user to edit and persist the generated factual version", async () => {
     renderPreview();
-    expect(await screen.findByText("Ava Stone")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Ava Stone" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /edit generated version/i }));
     const summary = screen.getByDisplayValue(/Targeting Frontend Engineer opportunities/i);
@@ -191,7 +191,7 @@ describe("ResumeBuilderPreviewPage", () => {
 
   it("requests a private signed PDF export instead of using a public stored URL", async () => {
     renderPreview();
-    await screen.findByText("Ava Stone");
+    await screen.findByRole("heading", { level: 1, name: "Ava Stone" });
     fireEvent.click(screen.getByRole("button", { name: /download pdf/i }));
 
     await waitFor(() => expect(mocked.exportGeneratedResume).toHaveBeenCalledWith(generatedId, "pdf"));
