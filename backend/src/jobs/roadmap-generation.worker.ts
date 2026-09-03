@@ -13,6 +13,15 @@ type RagRoadmapJobData = {
   input: RoadmapGenerationInput;
 };
 
+const refundTerminalUsage = async (job: Job<RagRoadmapJobData>): Promise<void> => {
+  const { error } = await getSupabaseStorageClient().rpc("refund_rag_usage_once", {
+    p_ai_job_id: job.data.aiJobId,
+  });
+  if (error) {
+    logger.error({ err: error, jobId: job.id, aiJobId: job.data.aiJobId }, "unable to refund terminal RAG usage reservation");
+  }
+};
+
 const syncRetryState = async (job: Job<RagRoadmapJobData>, error: Error): Promise<void> => {
   const maxAttempts = job.opts.attempts ?? 1;
   const retryScheduled = job.attemptsMade < maxAttempts;
@@ -41,6 +50,7 @@ const syncRetryState = async (job: Job<RagRoadmapJobData>, error: Error): Promis
   }
 
   if (!retryScheduled) {
+    await refundTerminalUsage(job);
     await writeDeadLetter({
       sourceQueue: "roadmapGenerationQueue",
       sourceJobId: job.id,
