@@ -11,7 +11,7 @@ const env = getEnv();
 export const app = express();
 
 app.disable("x-powered-by");
-app.set("trust proxy", env.NODE_ENV === "production" ? 1 : 0);
+app.set("trust proxy", env.NODE_ENV === "production" ? env.TRUST_PROXY_HOPS : 0);
 app.use(loggerMiddleware);
 app.use(securityMiddleware);
 app.use(corsMiddleware);
