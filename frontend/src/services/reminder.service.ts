@@ -45,6 +45,7 @@ export interface ReminderProgress {
 
 export interface ReminderStatus {
   preferences: ReminderPreferences;
+  includedInPlan: boolean;
   lastReminder: ReminderLog | null;
   unreadNotifications: number;
   progress: ReminderProgress | null;
