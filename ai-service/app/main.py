@@ -20,7 +20,7 @@ def validate_uploaded_resume(content: bytes, file_name: str, content_type: str) 
         raise ValueError("Resume file must be 5 MB or smaller")
     if extension == "pdf" and content_type == PDF_MIME_TYPE and content.startswith(b"%PDF-"):
         return
-    if extension == "docx" and content_type == DOCX_MIME_TYPE and content.startswith(b"PK\\x03\\x04"):
+    if extension == "docx" and content_type == DOCX_MIME_TYPE and content.startswith(b"PK\x03\x04"):
         return
     raise ValueError("Only valid PDF and DOCX resumes are supported")
 

@@ -1,0 +1,371 @@
+/* Documentation-driven MVP backbone screens: onboarding completion, skill gap, dashboard. */
+.auth-input {
+  width: 100%;
+  min-height: 46px;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  outline: none;
+  color: var(--ink);
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+.auth-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, .12);
+}
+
+.career-preferences-card,
+.skill-gap-control-card,
+.skill-result-card,
+.learning-order-card,
+.dashboard-panel,
+.dashboard-hero-row {
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .76);
+}
+
+.career-preferences-card {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.career-preferences-card .field-label {
+  display: grid;
+  gap: 7px;
+}
+
+.onboarding-complete-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.onboarding-success-card {
+  text-align: center;
+}
+
+.success-hero-icon {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 18px;
+  place-items: center;
+  border-radius: 20px;
+  color: #047857;
+  background: #d1fae5;
+}
+
+.onboarding-next-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 20px;
+  text-align: left;
+}
+
+.next-step-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: var(--ink);
+  background: #fff;
+  text-decoration: none;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.next-step-card:hover,
+.next-step-card:focus-visible {
+  border-color: #a5b4fc;
+  box-shadow: 0 12px 28px rgba(79, 70, 229, .1);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.next-step-primary {
+  border-color: #a7f3d0;
+  background: linear-gradient(135deg, #ecfdf5, #eff6ff);
+}
+
+.next-step-card div {
+  display: grid;
+  gap: 4px;
+}
+
+.next-step-card strong {
+  font-size: 13px;
+}
+
+.next-step-card span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.skill-gap-control-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: end;
+  margin-bottom: 18px;
+  background: linear-gradient(135deg, #f8fafc, #eef2ff);
+}
+
+.skill-gap-control-card .field-label {
+  display: block;
+  margin-bottom: 7px;
+}
+
+.skill-gap-metrics,
+.dashboard-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.dashboard-metrics-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.career-metric-card {
+  display: grid;
+  gap: 7px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: linear-gradient(145deg, #fff, #f8fafc);
+}
+
+.career-metric-card > svg {
+  color: var(--indigo);
+}
+
+.career-metric-card > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.career-metric-card strong {
+  color: var(--ink);
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 30px;
+  letter-spacing: -.05em;
+}
+
+.career-metric-card strong.metric-text {
+  font-size: 17px;
+  letter-spacing: -.025em;
+}
+
+.career-metric-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.career-metric-card progress {
+  width: 100%;
+  accent-color: var(--primary);
+}
+
+.skill-gap-columns,
+.dashboard-content-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.skill-result-card,
+.learning-order-card,
+.dashboard-panel {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.skill-result-card .section-heading,
+.learning-order-card .section-heading,
+.dashboard-panel .section-heading {
+  margin-bottom: 0;
+}
+
+.skill-chip.matched {
+  color: #047857;
+  background: #d1fae5;
+}
+
+.skill-chip.missing {
+  color: #b45309;
+  background: #fef3c7;
+}
+
+.learning-order-list {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.learning-order-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #eef2f7;
+  border-radius: 12px;
+  background: #f8fafc;
+  font-size: 12px;
+}
+
+.learning-order-list li > span {
+  display: grid;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 50%;
+  color: #4338ca;
+  background: #e0e7ff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.skill-gap-roadmap-cta,
+.dashboard-hero-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.skill-gap-roadmap-cta {
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid #eef2f7;
+}
+
+.skill-gap-roadmap-cta strong,
+.dashboard-hero-row h2 {
+  color: var(--ink);
+}
+
+.skill-gap-roadmap-cta p,
+.dashboard-hero-row p,
+.dashboard-panel > p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.dashboard-card {
+  width: min(100%, 980px);
+}
+
+.dashboard-hero-row {
+  margin-bottom: 16px;
+  border-color: #c7d2fe;
+  background: linear-gradient(135deg, #eef2ff, #ecfdf5);
+}
+
+.dashboard-hero-row h2 {
+  margin: 3px 0 0;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 20px;
+  letter-spacing: -.035em;
+}
+
+.dashboard-score-row {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.dashboard-score-row strong {
+  color: var(--ink);
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 28px;
+  letter-spacing: -.05em;
+}
+
+.dashboard-score-row span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.dashboard-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  margin-top: 2px;
+}
+
+.dashboard-status-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #047857;
+  font-size: 12px;
+}
+
+.dashboard-panel .empty-state-box {
+  padding: 16px;
+}
+
+@media (max-width: 900px) {
+  .dashboard-metrics-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .onboarding-next-grid,
+  .skill-gap-columns,
+  .dashboard-content-grid,
+  .skill-gap-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .skill-gap-control-card {
+    grid-template-columns: 1fr;
+  }
+
+  .skill-gap-roadmap-cta,
+  .dashboard-hero-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .career-preferences-card,
+  .skill-gap-control-card,
+  .skill-result-card,
+  .learning-order-card,
+  .dashboard-panel,
+  .dashboard-hero-row {
+    padding: 14px;
+  }
+}

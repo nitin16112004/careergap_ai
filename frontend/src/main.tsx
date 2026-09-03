@@ -5,6 +5,7 @@ import { App } from "./App";
 import { AuthProvider } from "./components/auth/AuthProvider";
 import { SessionHandler } from "./components/auth/SessionHandler";
 import "./styles.css";
+import "./mvp.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

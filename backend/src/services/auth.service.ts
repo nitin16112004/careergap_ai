@@ -106,7 +106,7 @@ const resultFor = (user: User, session: Session | null, profile: AuthProfile | n
   user: userSummary(user),
   session: sessionSummary(session),
   profile,
-  ...(session ? {} : { requiresVerification: true }),
+  ...(user.email_confirmed_at ? {} : { requiresVerification: true }),
 });
 
 export const authService = {

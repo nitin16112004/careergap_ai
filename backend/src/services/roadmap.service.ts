@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { getSupabaseStorageClient } from "../config/supabase";
 import type {
     GeneratedRoadmapPayload,
@@ -46,9 +45,7 @@ const getProfile = async (userId: string): Promise<{ full_name?: string | null; 
 
 const getSkillAnalysis = async (userId: string, skillAnalysisId?: string | null): Promise<{ id: string; user_id: string; role_id: string | null; current_skills: string[]; missing_skills: string[]; matched_skills: string[]; recommended_skills: string[]; analysis_result: Record<string, unknown> } | null> => {
     let query = getSupabaseStorageClient().from("skill_analyses").select("*").eq("user_id", userId);
-    if (skillAnalysisId) {
-        query = query.eq("id", skillAnalysisId);
-    }
+    if (skillAnalysisId) query = query.eq("id", skillAnalysisId);
     const { data, error } = await query.order("created_at", { ascending: false }).limit(1).maybeSingle();
     if (error) throw new HttpError(500, "Unable to load the skill gap analysis for roadmap generation.", "ROADMAP_SKILL_ANALYSIS_FAILED", false);
     if (!data) return null;
@@ -157,7 +154,7 @@ const buildRoadmapPayload = (userProfile: { full_name?: string | null; target_jo
         weeks.push({
             week_number: index + 1,
             title: `Week ${index + 1}: ${weekSkills[0] || "Core target-role fundamentals"}`,
-            description: `This week focuses on the most relevant ${roleName.toLowerCase()} skills identified from the current skill gap and knowledge base documents.`,
+            description: `This week focuses on the most relevant ${roleName.toLowerCase()} skills identified from the current skill gap and curated knowledge-base content.`,
             start_date: toIsoDate(index, new Date()),
             due_date: toIsoDate(index + 1, new Date()),
             tasks,
@@ -168,8 +165,9 @@ const buildRoadmapPayload = (userProfile: { full_name?: string | null; target_jo
         title: `${roleName} Roadmap`,
         description: summary,
         duration_weeks: duration,
-        generated_by: "rag",
+        generated_by: "basic_template",
         ai_response: {
+            generation_mode: "basic_template",
             role_name: roleName,
             user_name: authorName,
             target_role: userProfile.target_job_role ?? roleName,
@@ -177,7 +175,7 @@ const buildRoadmapPayload = (userProfile: { full_name?: string | null; target_jo
             missing_skills: missingSkills,
             recommended_skills: skillAnalysis?.recommended_skills ?? [],
             career_goal: userProfile.career_goal ?? null,
-            retrieved_documents: docs.map((doc) => ({ id: doc.title, title: doc.title, category: doc.category, source_url: doc.source_url ?? null })),
+            context_documents: docs.map((doc) => ({ id: doc.id, title: doc.title, category: doc.category, source_url: doc.source_url ?? null })),
         },
         weeks,
     };
@@ -234,6 +232,9 @@ export const roadmapService = {
             ...(skillAnalysis?.recommended_skills ?? []),
         ]);
 
+        if (!skillAnalysis) {
+            throw new HttpError(400, "Run a skill-gap analysis before generating an MVP roadmap.", "ROADMAP_SKILL_ANALYSIS_REQUIRED");
+        }
         if (!resolvedRoleName || missingSkills.length === 0) {
             throw new HttpError(400, "A roadmap requires a target role and at least one missing skill.", "ROADMAP_INPUT_INSUFFICIENT");
         }
@@ -243,10 +244,13 @@ export const roadmapService = {
         validateGeneratedRoadmap(payload);
 
         const client = getSupabaseStorageClient();
+        const resolvedRoleId = skillAnalysis.role_id ?? input.roleId ?? null;
+        await client.from("roadmaps").update({ is_active: false }).eq("user_id", userId).eq("is_active", true);
+
         const { data: roadmapRow, error: roadmapError } = await client.from("roadmaps").insert({
             user_id: userId,
-            skill_analysis_id: skillAnalysis?.id ?? input.skillAnalysisId ?? null,
-            role_id: input.roleId ?? null,
+            skill_analysis_id: skillAnalysis.id,
+            role_id: resolvedRoleId,
             title: payload.title,
             description: payload.description,
             duration_weeks: payload.duration_weeks,
@@ -258,21 +262,12 @@ export const roadmapService = {
 
         if (roadmapError || !roadmapRow) throw new HttpError(500, "Unable to save the generated roadmap record.", "ROADMAP_SAVE_FAILED", false);
 
-        const { data: ragQueryRow } = await client.from("rag_queries").insert({
-            id: randomUUID(),
-            user_id: userId,
-            query_text: `Generate a ${resolvedRoleName} roadmap using the profile and missing skills ${missingSkills.join(", ") || resolvedRoleName}`,
-            retrieved_document_ids: docs.map((doc) => doc.id),
-            response_summary: payload.description,
-            model_used: "retrieval-grounded-roadmap",
-        }).select("*").maybeSingle();
-
         const weekRows = await insertRoadmapWeeks(roadmapRow.id, payload.weeks);
-        const response: RoadmapGenerationResult = {
+        return {
             id: roadmapRow.id,
             user_id: userId,
-            skill_analysis_id: skillAnalysis?.id ?? input.skillAnalysisId ?? null,
-            role_id: input.roleId ?? null,
+            skill_analysis_id: skillAnalysis.id,
+            role_id: resolvedRoleId,
             title: roadmapRow.title,
             description: roadmapRow.description,
             duration_weeks: roadmapRow.duration_weeks,
@@ -303,15 +298,6 @@ export const roadmapService = {
                 })),
             })),
         };
-
-        if (ragQueryRow) {
-            response.ai_response = {
-                ...response.ai_response,
-                rag_query_id: ragQueryRow.id,
-            };
-        }
-
-        return response;
     },
 
     async list(userId: string): Promise<RoadmapRecord[]> {
@@ -402,11 +388,8 @@ export const roadmapService = {
         if (!task) throw new HttpError(404, "Roadmap task not found.", "ROADMAP_TASK_NOT_FOUND");
 
         const updatePayload: Record<string, unknown> = { status: nextStatus };
-        if (nextStatus === "completed") {
-            updatePayload.completed_at = new Date().toISOString();
-        } else if (task.status === "completed") {
-            updatePayload.completed_at = null;
-        }
+        if (nextStatus === "completed") updatePayload.completed_at = new Date().toISOString();
+        else if (task.status === "completed") updatePayload.completed_at = null;
 
         const { data: updatedTask, error: updateTaskError } = await client.from("roadmap_tasks").update(updatePayload).eq("id", taskId).eq("roadmap_id", roadmapId).select("*").maybeSingle();
         if (updateTaskError) throw new HttpError(500, "Unable to update the roadmap task status.", "ROADMAP_TASK_UPDATE_FAILED", false);
