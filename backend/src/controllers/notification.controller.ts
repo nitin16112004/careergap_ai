@@ -8,6 +8,12 @@ const userIdFrom = (request: Request): string => {
   return userId;
 };
 
+const notificationIdFrom = (request: Request): string => {
+  const value = request.params.notificationId;
+  if (typeof value !== "string") throw new HttpError(400, "A valid notification id is required.", "NOTIFICATION_ID_INVALID");
+  return value;
+};
+
 export const notificationController = {
   async list(request: Request, response: Response, next: NextFunction): Promise<void> {
     try {
@@ -19,7 +25,7 @@ export const notificationController = {
 
   async markRead(request: Request, response: Response, next: NextFunction): Promise<void> {
     try {
-      const data = await notificationService.markRead(userIdFrom(request), request.params.notificationId);
+      const data = await notificationService.markRead(userIdFrom(request), notificationIdFrom(request));
       response.json({ success: true, message: "Notification marked as read.", data });
     } catch (error) {
       next(error);
