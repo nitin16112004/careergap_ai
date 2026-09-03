@@ -2,9 +2,9 @@ name: Product CI
 
 on:
   pull_request:
-    branches: [dev, feat/mvp-backbone, feat/ats-v1-1]
+    branches: [dev, feat/mvp-backbone, feat/ats-v1-1, feat/rag-v1-2]
   push:
-    branches: [feat/mvp-backbone, feat/ats-v1-1, feat/rag-v1-2]
+    branches: [feat/mvp-backbone, feat/ats-v1-1, feat/rag-v1-2, feat/hardening-v1-3]
 
 permissions:
   contents: read
@@ -76,3 +76,15 @@ jobs:
         run: python -m compileall -q app tests
       - name: Test
         run: pytest -q
+
+  infrastructure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate Docker Compose
+        run: docker compose config --quiet
+      - name: Validate edge Nginx
+        run: docker run --rm -v "$PWD/infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro" nginx:1.27-alpine nginx -t
+      - name: Build production containers
+        run: docker compose build frontend backend ai-service
