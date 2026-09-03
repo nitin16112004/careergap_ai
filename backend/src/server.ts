@@ -6,11 +6,31 @@ import { getEnv } from "./config/env";
 
 const env = getEnv();
 const server = http.createServer(app);
+const SHUTDOWN_GRACE_MS = 15_000;
+let shuttingDown = false;
+
+server.requestTimeout = 120_000;
+server.headersTimeout = 65_000;
+server.keepAliveTimeout = 5_000;
+server.maxRequestsPerSocket = 1_000;
 
 const shutdown = async (signal: string): Promise<void> => {
-  console.info(`${signal} received; shutting down`);
-  await new Promise<void>((resolve) => server.close(() => resolve()));
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.info(`${signal} received; draining HTTP connections`);
+
+  const forceTimer = setTimeout(() => {
+    console.error("Graceful shutdown deadline exceeded; closing remaining connections");
+    server.closeAllConnections();
+  }, SHUTDOWN_GRACE_MS);
+  forceTimer.unref();
+
+  await new Promise<void>((resolve) => {
+    server.close(() => resolve());
+  });
+  clearTimeout(forceTimer);
   await disconnectRedis();
+  console.info("Backend shutdown complete");
 };
 
 export const startServer = async (): Promise<http.Server> => {
