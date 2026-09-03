@@ -32,7 +32,8 @@ Primary journey:
 11. Receive automatic roadmap reminders when appropriate.
 12. Improve an ATS-oriented resume without fabricating user facts.
 13. Enforce plan usage and support explicit billing/upgrade flows.
-14. Continue into full admin, public pages, deployment, and polish.
+14. Operate the platform through an authenticated, audited admin console.
+15. Continue into public pages, deployment validation, broader testing, and polish.
 
 Every product screen should answer: **what should the user do next?**
 
@@ -59,7 +60,8 @@ Dependent phase branches:
 - `feat/rag-v1-2` — Version 1.2 true RAG, draft PR #3 targeting ATS.
 - `feat/v1-3-hardening` — Version 1.3 production hardening, draft PR #5 targeting RAG.
 - `feat/v1-4-reminders` — Version 1.4 progress/reminder automation targeting Version 1.3.
-- `feat/billing-upgrade` — documented Phase 14 payment/upgrade flow targeting Version 1.4.
+- `feat/billing-upgrade` — documented Phase 14 payment/upgrade flow targeting Version 1.4, draft PR #7.
+- `feat/admin-panel` — documented Phase 15 admin application targeting `feat/billing-upgrade`.
 
 Do not flatten these phase boundaries only to simplify history. Keep contracts reviewable and do not merge dependent phases out of order.
 
@@ -159,11 +161,7 @@ Implemented on `feat/v1-4-reminders`:
 
 #### Reminder preferences and persistence
 
-- New `reminder_preferences` table with:
-  - master email toggle
-  - weekly-pending toggle
-  - inactivity toggle
-  - motivational toggle
+- New `reminder_preferences` table with master/per-type email switches.
 - User-owned RLS for preference reads/writes.
 - Scheduler reminder logs cannot be forged by normal direct-user RLS inserts.
 - `reminder_logs` stores durable dedupe key, reason, metadata, delivery status/error, sent time.
@@ -173,72 +171,21 @@ Implemented on `feat/v1-4-reminders`:
 
 A weekly scan evaluates one newest active roadmap per user and selects at most one reminder using priority:
 
-1. `inactive_user` — no activity for configured inactivity period (default 7 days).
+1. `inactive_user` — no activity for configured inactivity period.
 2. `weekly_pending_task` — current roadmap week still has pending tasks.
 3. `motivational` — progress is behind expected checkpoint / overdue work exists.
 
-Master/per-type preference switches are respected.
-
-Deterministic dedupe keys plus PostgreSQL uniqueness protect against duplicate scans/retries/races. Weekly reminder dedupe remains schema-enforced as defense in depth.
+Master/per-type preferences are respected. Deterministic dedupe keys plus PostgreSQL uniqueness protect against duplicate scans/retries/races.
 
 #### Scheduler + delivery
 
 - BullMQ `weeklyReminderQueue` uses durable Job Scheduler state in Redis.
-- Default schedule: Monday 09:00 in configured `REMINDER_CRON_TIMEZONE`.
-- Scheduler creates persisted reminder/notification/email records before email delivery.
 - Dedicated `emailQueue` worker handles transactional email asynchronously.
 - Resend-compatible provider boundary for real delivery.
 - Local `console` provider is allowed only outside production; production fails closed.
 - Email jobs retry with exponential backoff.
-- After provider acceptance, a Redis delivery receipt is saved before DB synchronization so a DB-sync retry can repair state without sending the email twice.
-- Exhausted email jobs write to the Version 1.3 `deadLetterQueue`.
-
-#### APIs
-
-User:
-
-- `GET /api/v1/reminders/status`
-- `GET /api/v1/reminders/preferences`
-- `PUT /api/v1/reminders/preferences`
-- `GET /api/v1/reminders/logs`
-- `GET /api/v1/notifications`
-- `PATCH /api/v1/notifications/read-all`
-- `PATCH /api/v1/notifications/:notificationId/read`
-- `GET /api/v1/roadmap/:roadmapId/progress`
-
-Admin-only:
-
-- `POST /api/v1/reminders/check-weekly`
-- `GET /api/v1/reminders/logs/:userId`
-
-Normal users do not get a manual "send reminder" capability.
-
-#### Frontend
-
-- `/settings` reminder preferences.
-- Recent reminder delivery history.
-- In-app notification history + unread count.
-- Exact `/roadmap/:roadmapId` route.
-- Dashboard reminder status, last reason/date, overdue counts, unread notifications.
-- Roadmap behind-schedule banner.
-- Current-week pending/overdue/expected progress.
-- Last reminder reason/date + link to reminder settings.
-
-#### Runtime topology
-
-Default Compose now contains:
-
-- `edge`
-- `frontend`
-- `backend`
-- `ai-service`
-- `resume-worker`
-- `roadmap-worker`
-- `email-worker`
-- `reminder-scheduler`
-- `redis`
-
-Reminder/email processes remain internal services and share the same Supabase/Redis contracts as the backend.
+- Provider acceptance is protected with a Redis delivery receipt before DB synchronization.
+- Exhausted email jobs write to the Version 1.3 dead-letter path.
 
 ### Phase 14 payment + upgrade
 
@@ -247,62 +194,90 @@ Implemented on `feat/billing-upgrade` as a direct descendant of Version 1.4.
 #### Plans and usage
 
 - Canonical `plans`, `subscriptions`, `payment_transactions`, and `usage_counters` tables are used.
-- Seeded Free, Pro, and Premium plans carry monthly/yearly prices and documented usage-limit columns.
-- `consume_plan_usage(...)` atomically locks/creates the monthly counter before incrementing it.
+- Free, Pro, and Premium plans carry documented limits and prices.
+- `consume_plan_usage(...)` provides atomic monthly usage enforcement.
 - Limit exhaustion returns HTTP `402` with `PLAN_LIMIT_REACHED`.
-- Resume upload, roadmap generation, and ATS resume generation reserve metered usage before work starts.
-- Synchronous failures refund the reserved unit.
-- Terminal failed async RAG generation calls `refund_rag_usage_once(...)` so the original month is refunded exactly once.
+- Resume upload, roadmap generation, and ATS resume generation reserve usage before work starts.
+- Synchronous failures refund reservations.
+- Terminal failed async RAG generation refunds the original month exactly once.
 
 #### Paid entitlements
 
-An active Pro/Premium subscription is required for current paid feature gates:
-
-- true RAG/advanced roadmap generation
-- ATS PDF/DOCX download
-- weekly reminder-email entitlement selection
-
-Expired or missing paid subscriptions resolve back to the Free plan.
+An active Pro/Premium subscription is required for current paid feature gates including true RAG roadmaps, ATS downloads, and paid reminder-email entitlement selection.
 
 #### Provider/payment boundary
 
-- Razorpay order checkout is supported for INR plans.
-- Razorpay browser payment signatures are verified server-side before activation.
-- Razorpay webhook signatures are verified from the preserved raw request body.
-- Stripe hosted Checkout is supported in subscription mode using configured Price IDs.
-- Stripe webhook signatures include timestamp tolerance validation.
-- `billing_webhook_events` provides provider-event idempotency and failed-event retry state.
-- `activate_paid_subscription(...)` locks the checkout transaction so browser callback and webhook activation can race safely.
-- Payment failure does not grant paid entitlement.
-- Subscription cancellation/payment-failure state is persisted.
+- Razorpay INR checkout and server-side browser signature verification.
+- Razorpay raw-body webhook signature verification.
+- Stripe hosted subscription Checkout with configured Price IDs.
+- Stripe webhook signature/timestamp verification.
+- Provider-event idempotency and retry state.
+- Atomic paid-subscription activation across browser callback/webhook races.
+- Payment failure/cancellation/subscription lifecycle persistence.
 
-#### Billing APIs
+See `BILLING_PAYMENT_SETUP.md`.
 
-Public/provider-authenticated:
+### Phase 15 admin panel
 
-- `GET /api/v1/billing/plans`
-- `POST /api/v1/billing/webhook`
-- `POST /api/v1/billing/webhook/:provider`
+Implemented on `feat/admin-panel` as a direct descendant of billing.
 
-Authenticated user:
+#### Authorization
 
-- `GET /api/v1/billing/current-plan`
-- `GET /api/v1/billing/history`
-- `POST /api/v1/billing/create-checkout`
-- `POST /api/v1/billing/verify-razorpay`
-- `POST /api/v1/billing/cancel`
+- Every `/api/v1/admin/*` route requires a verified Supabase session and `app_metadata.role = admin`.
+- Frontend `/admin*` routes independently redirect non-admin profiles, but backend authorization remains authoritative.
+- Supabase service-role/admin capabilities remain server-only.
 
-#### Frontend
+#### Dashboard
 
-- `/billing` shows current plan and monthly usage.
-- Pricing/upgrade actions support monthly/yearly paid-plan selection.
-- Provider checkout state and explicit errors are surfaced.
-- Billing history is backed by persisted payment transactions.
-- Cancellation state remains visible to the user.
+`/admin` exposes the documented Web Flow metrics:
 
-#### Setup guide
+- Total Users
+- Completed Onboarding
+- Resume Uploads
+- Roadmaps Generated
+- Reminder Emails Sent
+- Failed AI Jobs
 
-See `BILLING_PAYMENT_SETUP.md` for migrations, provider environment variables, webhook endpoints, live sandbox/provider testing, and the release-validation boundary.
+Operational context also includes active job roles and active paid subscriptions.
+
+#### User administration
+
+- Search users and inspect profile/onboarding/resume/analysis/roadmap/subscription state.
+- Read Supabase Auth access state and recent sign-in metadata.
+- Promote/demote roles through Supabase Auth `app_metadata.role` plus synchronized `profiles.role`.
+- Disable/restore real Supabase Auth access rather than using a cosmetic profile flag.
+- Self-demotion and self-disable are rejected to avoid admin lockout.
+- High-impact actions require frontend confirmation and are audited.
+
+#### Job roles and skills
+
+- Create/update/soft-disable job roles.
+- Job-role delete behavior is intentionally a soft disable so historical analyses/roadmaps keep referential meaning.
+- Create/update/delete canonical skills.
+- Add/remove role-skill mappings and configure documented priority/weight/level values.
+
+#### Knowledge base
+
+- List/create/edit/delete curated RAG knowledge documents.
+- Text-based browser import is limited to `.txt`, Markdown, CSV, and JSON rather than pretending PDF/DOCX is parsed.
+- Content edits clear stored embeddings so stale vectors cannot represent changed text.
+- Existing admin-only index status/reindex endpoints remain in the same protected admin namespace.
+
+#### Operations and auditability
+
+- Reminder delivery history is visible to admins.
+- Audit log, failed AI jobs, and failed email operations are exposed through `/admin/logs`.
+- Existing runtime/queue operations summaries remain available.
+- Mutations write `audit_logs` for user, role, skill, mapping, and knowledge-base changes.
+- Regression coverage includes admin self-lockout protection.
+
+#### Frontend / accessibility
+
+- Real routes: `/admin`, `/admin/users`, `/admin/job-roles`, `/admin/knowledge-base`, `/admin/reminders`, `/admin/logs`.
+- Canonical dark authenticated sidebar + emerald primary actions.
+- Labelled form fields, keyboard-visible focus states, accessible icon buttons, responsive layouts, and destructive-action confirmations.
+
+See `ADMIN_PANEL_SETUP.md`.
 
 ## Security / Integrity Rules
 
@@ -321,6 +296,10 @@ See `BILLING_PAYMENT_SETUP.md` for migrations, provider environment variables, w
 - Use DB-level reminder and billing-webhook idempotency, not only in-memory checks.
 - Verify payment-provider signatures before changing subscription state.
 - Do not grant user JWTs direct execution of service-role billing enforcement RPCs.
+- Protect every admin API server-side; frontend route guards are not authorization.
+- Do not let an admin remove their own admin access or disable their own account through Phase 15 controls.
+- Clear/reindex RAG embeddings when admin-edited knowledge content changes.
+- Audit security-sensitive admin mutations.
 - Do not log JWTs/passwords/OTPs/secrets or unnecessary sensitive profile/payment data.
 
 ## Validation Standard
@@ -365,6 +344,13 @@ Before a real release, explicitly live-validate:
 - payment failure/expiry/cancellation transitions
 - plan usage enforcement + refund behavior
 - billing ownership/history visibility
+- real Supabase admin JWT authorization and normal-user `403` behavior
+- admin user role changes with refreshed JWTs
+- admin disable/re-enable behavior against Supabase Auth
+- admin self-lockout protection
+- job-role/skill mutations and audit records
+- knowledge content edit -> embedding clear -> reindex behavior
+- reminder/admin log visibility
 - centralized logs/error tracking/alerts
 - queue backlog alerts
 - backup/recovery procedures
@@ -375,14 +361,14 @@ See:
 - `V1_3_PRODUCTION_HARDENING.md`
 - `V1_4_REMINDERS_SETUP.md`
 - `BILLING_PAYMENT_SETUP.md`
+- `ADMIN_PANEL_SETUP.md`
 
 ## Remaining Documented Build Order
 
-1. Live-validate Versions 1.0–1.4 and the payment/upgrade phase in a real configured environment, using sandbox/test payment providers before live mode.
-2. Complete the documented admin application beyond current KB/ops/reminder APIs.
-3. Build public landing/features/pricing pages.
-4. Complete remaining profile/settings product surfaces.
-5. Broaden integration/E2E testing and release automation.
-6. Add centralized production monitoring and finish UX/performance/accessibility polish.
+1. Live-validate Versions 1.0–1.4, payment/upgrade, and Phase 15 admin controls in a real configured environment.
+2. Build public landing/features/pricing pages.
+3. Complete remaining profile/settings product surfaces.
+4. Broaden integration/E2E testing and release automation.
+5. Add centralized production monitoring and finish UX/performance/accessibility polish.
 
-Do not treat a green repository CI run as proof that Supabase, RAG providers, transactional email, payment providers, DNS/TLS, or production monitoring are configured correctly.
+Do not treat a green repository CI run as proof that Supabase, RAG providers, transactional email, payment providers, admin Auth mutations, DNS/TLS, or production monitoring are configured correctly.
