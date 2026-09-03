@@ -54,10 +54,12 @@ const processReminderEmail = async (job: Job<ReminderEmailJobData>): Promise<voi
       subject: job.data.subject,
       html: job.data.html,
       text: job.data.text,
+      idempotencyKey: `reminder/${job.data.reminderLogId}`,
     });
     providerMessageId = result.providerMessageId;
-    // Persist provider success outside PostgreSQL first. If DB synchronization
-    // fails after delivery, a BullMQ retry can repair state without re-sending.
+    // Provider-level idempotency is the primary duplicate-send guard for retries.
+    // This Redis receipt additionally lets a retry repair PostgreSQL state without
+    // another provider call when DB synchronization failed after delivery.
     await redis.set(deliveredKey(job.data.reminderLogId), providerMessageId, { EX: 60 * 60 * 24 * 30 });
   }
 
