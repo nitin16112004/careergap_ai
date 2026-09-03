@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { atsResumeService } from "../services/ats-resume.service";
+import { billingService } from "../services/billing.service";
 import { HttpError } from "../utils/http-error";
 
 const userIdFrom = (request: Request): string => {
@@ -31,11 +32,16 @@ export const analyze = async (request: Request, response: Response, next: NextFu
 };
 
 export const generate = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
+    const userId = userIdFrom(request);
+    let reserved = false;
     try {
+        await billingService.consume(userId, "ats_resume_generation");
+        reserved = true;
         const { targetRole, jobDescription, versionName } = request.body;
-        const result = await atsResumeService.generate(userIdFrom(request), resumeIdFrom(request), targetRole, jobDescription, versionName);
+        const result = await atsResumeService.generate(userId, resumeIdFrom(request), targetRole, jobDescription, versionName);
         response.status(201).json({ success: true, message: "ATS resume generated from reviewed resume facts.", data: result });
     } catch (error) {
+        if (reserved) await billingService.refund(userId, "ats_resume_generation").catch(() => undefined);
         next(error);
     }
 };
@@ -67,7 +73,9 @@ export const updateGenerated = async (request: Request, response: Response, next
 
 export const exportPdf = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
     try {
-        const result = await atsResumeService.exportGenerated(userIdFrom(request), generatedResumeIdFrom(request), "pdf");
+        const userId = userIdFrom(request);
+        await billingService.requireFeature(userId, "ats_download");
+        const result = await atsResumeService.exportGenerated(userId, generatedResumeIdFrom(request), "pdf");
         response.json({ success: true, message: "PDF resume is ready for secure download.", data: result });
     } catch (error) {
         next(error);
@@ -76,7 +84,9 @@ export const exportPdf = async (request: Request, response: Response, next: Next
 
 export const exportDocx = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
     try {
-        const result = await atsResumeService.exportGenerated(userIdFrom(request), generatedResumeIdFrom(request), "docx");
+        const userId = userIdFrom(request);
+        await billingService.requireFeature(userId, "ats_download");
+        const result = await atsResumeService.exportGenerated(userId, generatedResumeIdFrom(request), "docx");
         response.json({ success: true, message: "DOCX resume is ready for secure download.", data: result });
     } catch (error) {
         next(error);

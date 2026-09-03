@@ -28,6 +28,18 @@ const envSchema = z.object({
   REMINDER_SCAN_BATCH_SIZE: z.coerce.number().int().min(1).max(2_000).default(500),
   REMINDER_EMAIL_JOB_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
   ACTIVITY_TOUCH_INTERVAL_SECONDS: z.coerce.number().int().min(30).max(3_600).default(300),
+
+  BILLING_DEFAULT_PROVIDER: z.enum(["razorpay", "stripe"]).default("razorpay"),
+  BILLING_WEBHOOK_TOLERANCE_SECONDS: z.coerce.number().int().min(60).max(3_600).default(300),
+  RAZORPAY_KEY_ID: z.string().default(""),
+  RAZORPAY_KEY_SECRET: z.string().default(""),
+  RAZORPAY_WEBHOOK_SECRET: z.string().default(""),
+  STRIPE_SECRET_KEY: z.string().default(""),
+  STRIPE_WEBHOOK_SECRET: z.string().default(""),
+  STRIPE_PRO_MONTHLY_PRICE_ID: z.string().default(""),
+  STRIPE_PRO_YEARLY_PRICE_ID: z.string().default(""),
+  STRIPE_PREMIUM_MONTHLY_PRICE_ID: z.string().default(""),
+  STRIPE_PREMIUM_YEARLY_PRICE_ID: z.string().default(""),
 });
 
 export type Env = z.infer<typeof envSchema>;

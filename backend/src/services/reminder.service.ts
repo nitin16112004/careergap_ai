@@ -3,6 +3,7 @@ import { getEnv } from "../config/env";
 import { logger } from "../config/logger";
 import { getSupabaseStorageClient } from "../config/supabase";
 import { createQueue } from "../jobs/queues";
+import { billingService } from "./billing.service";
 import { calculateRoadmapProgress } from "./roadmap-progress.service";
 import type { ReminderEmailJobData, ReminderPreferences, ReminderScanResult, ReminderType } from "../types/reminder";
 import { HttpError } from "../utils/http-error";
@@ -122,6 +123,7 @@ const buildCandidate = (
   const weekId = progress.currentWeek?.id ?? null;
 
   if (type === "inactive_user") {
+    const inactiveDays = getEnv().REMINDER_INACTIVE_DAYS;
     const title = `Continue your ${roadmap.title}`;
     const body = `Hi ${firstName}, your roadmap is still ready for you. Pick one pending task today and restart your momentum.`;
     return {
@@ -134,12 +136,12 @@ const buildCandidate = (
       reminderType: type,
       pendingTaskCount: progress.pendingTasks,
       dedupeKey: `inactive:${profile.id}:${isoWeekKey(now)}`,
-      reason: `No recorded activity for at least ${getEnv().REMINDER_INACTIVE_DAYS} days`,
+      reason: `No recorded activity for at least ${inactiveDays} days`,
       subject: "Continue your CareerGuid AI roadmap",
       text: `${body}\n\nOpen your roadmap: ${link}`,
       html: emailDocument(title, body, link),
       notificationTitle: "Your roadmap is waiting",
-      notificationMessage: "You have been inactive for 7 days. Continue your roadmap today.",
+      notificationMessage: `You have been inactive for ${inactiveDays} days. Continue your roadmap today.`,
       linkPath,
       metadata: { progressPercentage: progress.progressPercentage, overdueTasks: progress.overdueTasks },
     };
@@ -319,11 +321,12 @@ export const reminderService = {
 
   async getStatus(userId: string) {
     const client = getSupabaseStorageClient();
-    const [preferences, latestReminder, activeRoadmap, unreadResult] = await Promise.all([
+    const [preferences, latestReminder, activeRoadmap, unreadResult, includedInPlan] = await Promise.all([
       this.getPreferences(userId),
       client.from("reminder_logs").select("id,roadmap_id,week_id,reminder_type,pending_task_count,email_sent,email_status,sent_at,reason,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       client.from("roadmaps").select("id,progress_percentage,duration_weeks").eq("user_id", userId).eq("is_active", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       client.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("is_read", false),
+      billingService.hasFeature(userId, "weekly_reminders"),
     ]);
 
     if (latestReminder.error || activeRoadmap.error || unreadResult.error) {
@@ -343,6 +346,7 @@ export const reminderService = {
 
     return {
       preferences,
+      includedInPlan,
       lastReminder: latestReminder.data ?? null,
       unreadNotifications: unreadResult.count ?? 0,
       progress,
@@ -383,11 +387,12 @@ export const reminderService = {
 
       const userIds = roadmaps.map((row) => row.user_id);
       const roadmapIds = roadmaps.map((row) => row.id);
-      const [profilesResult, preferencesResult, weeksResult, tasksResult] = await Promise.all([
+      const [profilesResult, preferencesResult, weeksResult, tasksResult, paidReminderUsers] = await Promise.all([
         client.from("profiles").select("id,email,full_name,last_activity_at,onboarding_completed").in("id", userIds),
         client.from("reminder_preferences").select("user_id,email_enabled,weekly_pending_enabled,inactive_enabled,motivational_enabled").in("user_id", userIds),
         client.from("roadmap_weeks").select("id,roadmap_id,week_number,title,start_date,due_date").in("roadmap_id", roadmapIds).order("week_number", { ascending: true }),
         client.from("roadmap_tasks").select("id,roadmap_id,week_id,status,due_date").in("roadmap_id", roadmapIds),
+        billingService.getUsersWithFeature(userIds, "weekly_reminders"),
       ]);
 
       if (profilesResult.error || preferencesResult.error || weeksResult.error || tasksResult.error) {
@@ -404,6 +409,10 @@ export const reminderService = {
       for (const roadmap of roadmaps) {
         const profile = profiles.get(roadmap.user_id);
         if (!profile?.onboarding_completed || !profile.email?.trim()) continue;
+        if (!paidReminderUsers.has(profile.id)) {
+          result.skippedDisabled += 1;
+          continue;
+        }
 
         const prefs = toPreferences(preferences.get(profile.id));
         if (!prefs.emailEnabled) {

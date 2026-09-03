@@ -1,4 +1,4 @@
-import express from "express";
+import express, { type Request } from "express";
 import { getEnv } from "./config/env";
 import { corsMiddleware } from "./middleware/cors.middleware";
 import { errorMiddleware, notFoundMiddleware } from "./middleware/error.middleware";
@@ -15,7 +15,15 @@ app.set("trust proxy", env.NODE_ENV === "production" ? env.TRUST_PROXY_HOPS : 0)
 app.use(loggerMiddleware);
 app.use(securityMiddleware);
 app.use(corsMiddleware);
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({
+  limit: "1mb",
+  verify: (request, _response, buffer) => {
+    const expressRequest = request as Request;
+    if (expressRequest.originalUrl.includes("/billing/webhook")) {
+      expressRequest.rawBody = Buffer.from(buffer);
+    }
+  },
+}));
 app.use(express.urlencoded({ extended: false, limit: "1mb" }));
 
 app.get("/", (_request, response) => response.json({ service: "careerguid-ai-backend", status: "ok" }));

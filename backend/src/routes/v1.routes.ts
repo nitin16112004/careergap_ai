@@ -10,6 +10,7 @@ import { createDashboardRoutes } from "./dashboard.routes";
 import { createAdminRoutes } from "./admin.routes";
 import { createReminderRoutes } from "./reminder.routes";
 import { createNotificationRoutes } from "./notification.routes";
+import { createBillingRoutes } from "./billing.routes";
 
 export const v1Routes = Router();
 v1Routes.use("/auth", createAuthRoutes());
@@ -25,5 +26,6 @@ v1Routes.use("/resume", createPlaceholderRoutes("resume"));
 v1Routes.use("/roadmap", createRoadmapRoutes());
 v1Routes.use("/reminders", createReminderRoutes());
 v1Routes.use("/notifications", createNotificationRoutes());
+v1Routes.use("/billing", createBillingRoutes());
 v1Routes.use("/ai", createPlaceholderRoutes("ai"));
 v1Routes.use("/admin", createAdminRoutes());

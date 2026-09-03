@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import type { RoadmapGenerationMode, RoadmapTaskStatus } from "../types/roadmap";
+import { billingService } from "../services/billing.service";
 import { roadmapService } from "../services/roadmap.service";
 import { roadmapProgressService } from "../services/roadmap-progress.service";
 import { ragRoadmapService } from "../services/rag-roadmap.service";
@@ -30,7 +31,9 @@ const taskIdFrom = (request: Request): string => {
 };
 
 export const generateRoadmap = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
+    let reservedUserId: string | null = null;
     try {
+        const userId = userIdFrom(request);
         const { skillAnalysisId, roleId, roleName, targetRole, durationWeeks, generationMode } = request.body;
         const mode: RoadmapGenerationMode = generationMode === "rag" ? "rag" : "basic_template";
         const input = {
@@ -42,19 +45,20 @@ export const generateRoadmap = async (request: Request, response: Response, next
             generationMode: mode,
         };
 
+        if (mode === "rag") await billingService.requireFeature(userId, "advanced_roadmap");
+        await billingService.consume(userId, "roadmap_generation");
+        reservedUserId = userId;
+
         if (mode === "rag") {
-            const job = await ragRoadmapService.enqueue(userIdFrom(request), input);
-            response.status(202).json({
-                success: true,
-                message: "AI roadmap generation queued.",
-                data: job,
-            });
+            const job = await ragRoadmapService.enqueue(userId, input);
+            response.status(202).json({ success: true, message: "AI roadmap generation queued.", data: job });
             return;
         }
 
-        const result = await roadmapService.generate(userIdFrom(request), input);
+        const result = await roadmapService.generate(userId, input);
         response.status(201).json({ success: true, message: "Roadmap generated successfully.", data: result });
     } catch (error) {
+        if (reservedUserId) await billingService.refund(reservedUserId, "roadmap_generation").catch(() => undefined);
         next(error);
     }
 };
