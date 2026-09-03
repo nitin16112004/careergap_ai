@@ -1,44 +1,86 @@
 # CareerGuid AI
 
-CareerGuid AI, also referenced as SkillSight in the product documentation, is an AI-powered career guidance platform built around a resume-first journey: authenticated profile onboarding, skill-gap analysis, weekly career roadmaps, progress tracking, and ATS-focused resume improvement.
+CareerGuid AI, also referenced as SkillSight in the product documentation, is a resume-first AI career-guidance platform for authenticated onboarding, skill-gap analysis, week-wise learning roadmaps, progress tracking, and ATS-oriented resume improvement.
 
-## Current Development Status
+## Development status
 
-The stable repository baseline remains `dev`. Active implementation is intentionally split into dependent review branches so each documented phase stays reviewable:
+The stable repository baseline remains `dev`. Implementation is intentionally split into dependent review branches so each documented product phase stays independently reviewable:
 
 1. `feat/mvp-backbone` — Version 1.0 MVP backbone, draft PR #1.
-2. `feat/ats-v1-1` — ATS resume builder Version 1.1, draft PR #2 targeting the MVP branch.
-3. `feat/rag-v1-2` — true RAG roadmap Version 1.2, currently validated in CI and intended to target the ATS branch as a dependent draft PR.
+2. `feat/ats-v1-1` — Version 1.1 ATS resume builder, draft PR #2 targeting the MVP branch.
+3. `feat/rag-v1-2` — Version 1.2 true RAG roadmap, draft PR #3 targeting the ATS branch.
+4. `feat/hardening-v1-3` — Version 1.3 security/scalability/deployment hardening, draft PR #4 targeting the RAG branch.
 
-Implemented foundations now include:
+No later phase should be described as merged into `dev` until its dependent PR chain is actually reviewed and merged.
 
-- Supabase Auth integration, JWT-protected backend routes, verification flows, and Redis-backed auth rate limiting.
-- Private PDF/DOCX resume upload, active resume metadata, BullMQ parsing jobs, and FastAPI MVP resume extraction.
-- Final resume-first onboarding with editable extracted data, career preferences, profile persistence, field-source traceability, and `onboarding_completed` enforcement.
-- Job-role APIs and weighted skill-gap analysis using canonical skills, aliases, role priorities, and persisted analysis results.
-- A real dashboard backed by profile, resume, skill-analysis, roadmap, task-progress, and generated-resume data.
-- Deterministic `basic_template` roadmap generation from the user's real skill analysis.
-- Roadmap task completion and progress recalculation.
-- ATS Version 1.1 factual-content safeguards, generated-resume editing, and private PDF/DOCX export with signed downloads.
-- True RAG Version 1.2 implementation: provider-backed query embeddings, Supabase pgvector similarity retrieval, validated LLM roadmap generation, BullMQ background jobs, RAG observability, curated knowledge-base seed content, and admin-controlled embedding indexing.
-- Docker Compose wiring for backend, Redis, AI service, resume worker, and roadmap worker.
-- GitHub Actions CI for backend, frontend, and AI-service validation.
+## Implemented feature foundations
 
-The product keeps `basic_template` and `rag` as explicit separate roadmap modes. A deterministic template is never labeled as RAG.
+### Version 1.0 — MVP backbone
 
-### Validation boundary
+- Supabase Auth, email verification, password reset, refresh/logout, and JWT-protected backend routes.
+- Redis-backed authentication rate limiting.
+- Private PDF/DOCX resume upload with type/signature/size validation and ownership checks.
+- BullMQ resume-parsing jobs and FastAPI resume extraction.
+- Resume review, editable onboarding data, career preferences, source traceability, and `onboarding_completed` enforcement.
+- Job-role APIs and persisted weighted skill-gap analysis using canonical skills, aliases, priorities, and role weights.
+- Real dashboard data from profile, resume, skill analysis, roadmap, progress, and generated-resume records.
+- Deterministic `basic_template` week-wise roadmap generation and task progress updates.
 
-Automated CI currently validates:
+### Version 1.1 — ATS resume builder
 
-- backend: TypeScript typecheck, tests, production build
-- frontend: TypeScript typecheck, tests, production build
-- AI service: Python compile check and pytest
+- ATS analysis without demo-score floors.
+- Generated content grounded in reviewed user data; no invented employers, experience, education, projects, certifications, or achievements.
+- Editable generated resume versions.
+- Private PDF and DOCX generation/storage with short-lived signed downloads.
 
-A real end-to-end RAG request still requires an actual Supabase project with migrations applied, Redis/runtime services, configured embedding and LLM provider credentials, and an indexed knowledge base. Real credentials are intentionally not committed to the repository, so CI success must not be confused with live-provider integration validation.
+### Version 1.2 — true RAG roadmap
+
+Pipeline:
+
+`profile + skill gap + target role -> embedding -> Supabase pgvector retrieval -> trusted context -> validated LLM roadmap -> BullMQ worker -> persistence`
+
+- Provider-backed embedding and structured roadmap endpoints in FastAPI.
+- Service-role-only cosine-similarity pgvector retrieval.
+- 1536-dimensional embedding validation matching the database schema.
+- Pydantic and backend validation of roadmap structure and retrieved-document references.
+- Async `ai_jobs` + `roadmapGenerationQueue` processing with retry/backoff handling.
+- Redis daily AI-roadmap limiting.
+- Curated knowledge-base seed plus admin-controlled embedding indexing.
+- RAG query/model/similarity/latency/error metadata.
+- Separate truthful `rag` and `basic_template` modes; failed RAG is never mislabeled as successful AI generation.
+
+See `RAG_ROADMAP_SETUP.md`.
+
+### Version 1.3 — production-hardening foundation
+
+- Correlated `X-Request-Id` handling and privacy-safe structured logging.
+- Expanded secret/token/PII log redaction.
+- Hardened Helmet/CSP/frame/referrer/HSTS behavior.
+- Finite HTTP server timeouts and graceful connection draining on shutdown.
+- Liveness, aggregate readiness, dependency-latency, and scheduler-heartbeat health endpoints.
+- Resilient namespaced Redis read-through cache for job-role and role-skill catalogs.
+- Scheduler runtime heartbeat foundation for the later reminder phase.
+- Full Docker Compose topology with edge Nginx, frontend, backend, AI service, resume worker, roadmap worker, scheduler, and Redis.
+- Only edge Nginx is host-published by default; Redis/backend/AI/workers remain internal to the Docker network.
+- Production frontend container with SPA fallback and asset caching.
+- Four-job CI covering backend, frontend, AI service, and infrastructure/container validation.
+
+See `HARDENING_V1_3.md`.
+
+## Validation boundary
+
+Repository CI validates source/configuration/image-build correctness:
+
+- **Backend:** install, TypeScript typecheck, tests, production build.
+- **Frontend:** install, TypeScript typecheck, tests, production build.
+- **AI service:** dependency install, Python compile, pytest.
+- **Infrastructure:** Docker Compose validation, Nginx syntax validation, production container builds.
+
+This is not proof of a live production environment. Real integration still requires external runtime configuration such as a real Supabase project and applied migrations, authenticated/TLS Redis configuration, provider credentials, indexed knowledge-base data, DNS/TLS termination, email-provider configuration, and production monitoring infrastructure. Real secrets are intentionally not committed.
 
 ## Documentation
 
-The authoritative product and technical documents are under `documentation/` with extracted Markdown copies in `documentation/extracted/`:
+Authoritative product/technical documents are under `documentation/` with extracted Markdown copies in `documentation/extracted/`:
 
 - Product Requirements Document (PRD)
 - Technical Requirements Document (TRD)
@@ -47,39 +89,27 @@ The authoritative product and technical documents are under `documentation/` wit
 - UI/UX Design Brief
 - Web Flow Document
 
-When implementation details conflict with stale status notes, follow those authoritative documents and the tested current code.
+When stale status notes conflict with these documents and tested current code, use the authoritative documents plus the latest validated implementation.
 
-Phase-specific setup notes include `RAG_ROADMAP_SETUP.md`, which documents the current Version 1.2 provider, vector-indexing, queue, API, and local-runtime contract.
+## Monorepo layout
 
-## Monorepo Layout
+- `frontend/` — React + TypeScript + Vite client and production frontend image.
+- `backend/` — Node.js + Express + TypeScript API, BullMQ workers, and scheduler host.
+- `ai-service/` — FastAPI resume parsing, embeddings, and structured RAG generation.
+- `supabase/` — PostgreSQL migrations, RLS/storage policies, pgvector retrieval contract, and seeds.
+- `infra/` — Nginx and deployment infrastructure.
+- `documentation/` — product and engineering source documents.
 
-- `frontend/` — React, TypeScript, Vite client.
-- `backend/` — Node.js, Express, TypeScript modular-monolith API plus BullMQ resume/RAG workers.
-- `ai-service/` — Python FastAPI resume parsing, embedding, and structured RAG generation service.
-- `worker/` — workspace reserved for broader scheduler/worker extraction as the system grows.
-- `supabase/` — PostgreSQL migrations, RLS/storage policies, pgvector retrieval contract, and seed data.
-- `infra/` — Docker/Nginx/deployment infrastructure work.
-- `scripts/` — project utilities.
-- `documentation/` — source product/engineering documentation.
+## Local requirements
 
-## Local Requirements
+- Node.js 22+
+- Python 3.12 recommended (CI runtime)
+- Docker Desktop or compatible Docker runtime
+- Supabase for live auth/database/storage/vector integration
+- Redis for queues, cache, and distributed rate limits
+- Embedding/LLM credentials for true RAG mode
 
-- Node.js 22 or newer.
-- Python 3.12 is used by CI; compatible Python 3.11+ environments may also work with the declared dependencies.
-- Docker Desktop or compatible Docker runtime.
-- A Supabase project for real database/auth/storage/vector integration.
-- Redis for queues and distributed rate limiting.
-- Embedding and LLM provider credentials for true RAG mode.
-
-## Environment Setup
-
-Never commit real secrets. Copy the provided example files and configure your own local values.
-
-Frontend requires the public Supabase URL/anon key and backend API URL. Backend requires Supabase server credentials, Redis configuration, frontend origin, and AI-service URL. The AI service requires embedding/LLM provider configuration for RAG. The Supabase service-role key must never be exposed to the frontend.
-
-See `.env.example` and `RAG_ROADMAP_SETUP.md` for the current provider-variable contract.
-
-## Common Development Commands
+## Common commands
 
 Frontend:
 
@@ -103,7 +133,7 @@ npm run build
 npm run dev
 ```
 
-FastAPI service:
+AI service:
 
 ```powershell
 cd ai-service
@@ -112,45 +142,32 @@ pytest -q
 uvicorn app.main:app --reload --port 8000
 ```
 
-Resume parsing worker:
+Workers/scheduler:
 
 ```powershell
 cd backend
 npm run worker
-```
-
-RAG roadmap worker:
-
-```powershell
-cd backend
 npm run roadmap-worker
+npm run scheduler
 ```
 
-Full local service set:
+Full container topology:
 
 ```powershell
 docker compose up --build
 ```
 
-After the RAG migrations and curated knowledge seed are applied, an authenticated admin must index the knowledge base using the protected admin indexing API before AI roadmap retrieval can succeed.
+Default edge URL is `http://localhost:8080`. Internal backend, AI service, Redis, workers, and scheduler are not host-published by the default Compose configuration.
 
-Regenerate extracted documentation:
+## Documentation-driven next order
 
-```powershell
-python scripts\extract_pdfs.py
-```
+Repository-level implementation has now reached the Version 1.3 hardening checkpoint. Continue in this order:
 
-## Documentation-Driven Build Order
+1. Live-validate the existing MVP/ATS/RAG/hardening chain against a real Supabase/Redis/provider environment.
+2. Version 1.4 progress/reminder automation: recurring scheduler jobs, pending-task detection, notification/email queues, idempotent reminder logs, retries, and user-facing reminder state.
+3. Billing and usage enforcement.
+4. Complete the admin application beyond current RAG indexing endpoints.
+5. Public marketing pages plus profile/settings/billing surfaces.
+6. Full integration/E2E testing, production deployment, external monitoring, rollback/runbooks, and final polish.
 
-The repository is currently at the Version 1.2 implementation checkpoint. Continue in this sequence:
-
-1. Apply and live-validate Version 1.0 MVP against a real Supabase/Redis/runtime environment.
-2. Live-validate Version 1.1 ATS private storage and PDF/DOCX downloads.
-3. Apply the Version 1.2 RAG migrations, configure providers, index the knowledge base, and run real end-to-end RAG validation.
-4. Version 1.3 scalability, security, observability, worker, Docker/Nginx, and deployment hardening.
-5. Version 1.4 progress/reminder automation.
-6. Billing and usage enforcement.
-7. Full admin application beyond the current RAG indexing endpoints.
-8. Public marketing pages, profile/settings surfaces, integration tests, deployment, monitoring, and final polish.
-
-Do not skip live validation of the earlier product contracts when moving into later phases. Each advanced capability must remain grounded in persisted, authenticated user data and explicit failure states.
+Do not claim external-service integration or production deployment merely because repository CI is green.
