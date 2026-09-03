@@ -43,6 +43,8 @@ const limitFor = (plan: BillingPlan, key: UsageKey): number | null => {
   return plan.ai_chat_limit;
 };
 
+const paidPlan = (plan: BillingPlan): boolean => plan.plan_slug === "pro" || plan.plan_slug === "premium";
+
 export const billingService = {
   async getPlans(): Promise<BillingPlan[]> {
     const { data, error } = await getSupabaseStorageClient()
@@ -115,12 +117,7 @@ export const billingService = {
       usage: USAGE_KEYS.map((key) => {
         const used = counts.get(key) ?? 0;
         const limit = limitFor(plan, key);
-        return {
-          key,
-          used,
-          limit,
-          remaining: limit == null ? null : Math.max(limit - used, 0),
-        };
+        return { key, used, limit, remaining: limit == null ? null : Math.max(limit - used, 0) };
       }),
     };
   },
@@ -137,19 +134,28 @@ export const billingService = {
 
     const decision = data as unknown as UsageDecision;
     if (!decision.allowed) {
-      throw new HttpError(
-        402,
-        `You have reached your ${decision.planSlug} plan limit for this billing period. Upgrade to continue.`,
-        "PLAN_LIMIT_REACHED",
-      );
+      throw new HttpError(402, `You have reached your ${decision.planSlug} plan limit for this billing period. Upgrade to continue.`, "PLAN_LIMIT_REACHED");
     }
     return decision;
   },
 
+  async refund(userId: string, usageKey: UsageKey, amount = 1): Promise<void> {
+    const { error } = await getSupabaseStorageClient().rpc("refund_plan_usage", {
+      p_user_id: userId,
+      p_usage_key: usageKey,
+      p_amount: amount,
+    });
+    if (error) throw new HttpError(500, "Unable to refund reserved plan usage.", "BILLING_USAGE_REFUND_FAILED", false);
+  },
+
+  async hasFeature(userId: string, _feature: BillingFeature): Promise<boolean> {
+    const { plan } = await this.getCurrentPlan(userId);
+    return paidPlan(plan);
+  },
+
   async requireFeature(userId: string, feature: BillingFeature): Promise<BillingPlan> {
     const { plan } = await this.getCurrentPlan(userId);
-    const paid = plan.plan_slug === "pro" || plan.plan_slug === "premium";
-    if (paid) return plan;
+    if (paidPlan(plan)) return plan;
 
     const message = feature === "advanced_roadmap"
       ? "AI RAG roadmaps require a Pro or Premium plan."
