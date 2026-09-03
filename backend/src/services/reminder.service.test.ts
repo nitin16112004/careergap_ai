@@ -10,6 +10,8 @@ const mocked = vi.hoisted(() => ({
 
 vi.mock("../config/env", () => ({
   getEnv: () => ({
+    NODE_ENV: "test",
+    LOG_LEVEL: "info",
     FRONTEND_URL: "https://app.example.com",
     REMINDER_INACTIVE_DAYS: 7,
     REMINDER_SCAN_BATCH_SIZE: 500,
