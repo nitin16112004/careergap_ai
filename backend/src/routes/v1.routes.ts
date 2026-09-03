@@ -4,9 +4,16 @@ import { createAuthRoutes } from "./auth.routes";
 import { createResumeRoutes } from "./resume.routes";
 import { createAtsResumeRoutes } from "./ats-resume.routes";
 import { createRoadmapRoutes } from "./roadmap.routes";
+import { createOnboardingRoutes } from "./onboarding.routes";
+import { createJobRoleRoutes, createSkillGapRoutes } from "./skill-gap.routes";
+import { createDashboardRoutes } from "./dashboard.routes";
 
 export const v1Routes = Router();
 v1Routes.use("/auth", createAuthRoutes());
+v1Routes.use("/onboarding", createOnboardingRoutes());
+v1Routes.use("/job-roles", createJobRoleRoutes());
+v1Routes.use("/skill-gap", createSkillGapRoutes());
+v1Routes.use("/dashboard", createDashboardRoutes());
 v1Routes.use("/users", createPlaceholderRoutes("users"));
 v1Routes.use("/profile", createPlaceholderRoutes("profile"));
 v1Routes.use("/resumes", createResumeRoutes());
