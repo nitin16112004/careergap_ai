@@ -3,10 +3,11 @@ import { apiRequest } from "./api";
 export type AdminAnalytics = {
   users: number;
   onboardedUsers: number;
-  activeJobRoles: number;
-  activeRoadmaps: number;
+  resumeUploads: number;
+  roadmapsGenerated: number;
+  reminderEmailsSent: number;
   failedAiJobs: number;
-  reminderLogs: number;
+  activeJobRoles: number;
   activePaidSubscriptions: number;
   generatedAt: string;
 };
@@ -123,6 +124,7 @@ export const adminService = {
   removeRoleSkill: (roleId: string, skillId: string) => apiRequest<void>(`/admin/job-roles/${encodeURIComponent(roleId)}/skills/${encodeURIComponent(skillId)}`, { method: "DELETE" }),
   knowledgeBase: () => apiRequest<AdminKnowledgeDocument[]>("/admin/knowledge-base"),
   createKnowledgeBase: (input: { title: string; category: string; content: string; sourceUrl?: string | null }) => apiRequest<AdminKnowledgeDocument>("/admin/knowledge-base", json(input)),
+  updateKnowledgeBase: (documentId: string, input: Partial<{ title: string; category: string; content: string; sourceUrl: string | null; isActive: boolean }>) => apiRequest<AdminKnowledgeDocument>(`/admin/knowledge-base/${encodeURIComponent(documentId)}`, put(input)),
   deleteKnowledgeBase: (documentId: string) => apiRequest<void>(`/admin/knowledge-base/${encodeURIComponent(documentId)}`, { method: "DELETE" }),
   reindexKnowledgeBase: () => apiRequest<unknown>("/admin/knowledge-base/reindex", json({ force: false, limit: 100 })),
   reminders: () => apiRequest<AdminReminder[]>("/admin/reminders"),
