@@ -33,7 +33,7 @@ Branch contract:
 | Auth middleware | `backend/src/middleware/auth.middleware.test.ts` |
 | Rate limits | `backend/src/services/auth-rate-limit.service.test.ts` |
 | Resume upload | Existing `backend/src/services/resume.service.test.ts` |
-| Profile update | Resume onboarding frontend tests + backend validation/build gates; live Supabase check remains required |
+| Profile update | `backend/src/services/onboarding.service.test.ts` — resume ownership, normalized persistence, field-source tracking, completion flag |
 | Skill gap logic | `backend/src/services/skill-gap.service.test.ts` — aliases, weights, priorities, onboarding gate |
 | Roadmap generation | Existing `backend/src/services/roadmap.service.test.ts` |
 | Task completion | Existing `backend/src/services/roadmap-progress.service.test.ts` and `RoadmapPage.test.tsx` |
