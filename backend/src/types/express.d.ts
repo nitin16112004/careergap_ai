@@ -5,6 +5,7 @@ declare global {
     interface Request {
       auth?: AuthContext;
       user?: AuthContext;
+      rawBody?: Buffer;
     }
   }
 }
