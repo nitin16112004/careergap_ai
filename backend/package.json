@@ -12,12 +12,14 @@
     "worker:start": "node dist/jobs/resume-processing.worker.js",
     "roadmap-worker": "tsx src/jobs/roadmap-generation.worker.ts",
     "roadmap-worker:start": "node dist/jobs/roadmap-generation.worker.js",
+    "scheduler": "tsx src/jobs/scheduler.ts",
+    "scheduler:start": "node dist/jobs/scheduler.js",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "check": "npm run typecheck"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.50.0",
