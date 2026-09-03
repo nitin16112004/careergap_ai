@@ -1,11 +1,21 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from .parser import ParsedResume, parse_resume_bytes, parse_text
+from .rag import (
+    EmbeddingRequest,
+    EmbeddingResponse,
+    ProviderConfigurationError,
+    ProviderResponseError,
+    RoadmapGenerationRequest,
+    RoadmapGenerationResponse,
+    create_embedding,
+    generate_roadmap,
+)
 
-app = FastAPI(title="CareerGuid AI Parser", version="0.1.0")
+app = FastAPI(title="CareerGuid AI Service", version="0.2.0")
 
 MAX_RESUME_FILE_SIZE = 5 * 1024 * 1024
 PDF_MIME_TYPE = "application/pdf"
@@ -32,7 +42,7 @@ class ParseResponse(BaseModel):
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "service": "careerguid-ai-parser"}
+    return {"status": "ok", "service": "careerguid-ai"}
 
 
 @app.post("/parse-resume", response_model=ParseResponse)
@@ -55,3 +65,27 @@ async def parse_resume(file: UploadFile | None = File(default=None), text: str |
         raise HTTPException(status_code=422, detail=str(error)) from error
     except Exception as error:
         raise HTTPException(status_code=500, detail="Resume parsing failed") from error
+
+
+@app.post("/embeddings", response_model=EmbeddingResponse)
+def embeddings(request: EmbeddingRequest) -> EmbeddingResponse:
+    try:
+        return create_embedding(request.input)
+    except ProviderConfigurationError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except ProviderResponseError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
+    except ValidationError as error:
+        raise HTTPException(status_code=502, detail="Embedding provider response failed validation") from error
+
+
+@app.post("/generate-roadmap", response_model=RoadmapGenerationResponse)
+def generate_rag_roadmap(request: RoadmapGenerationRequest) -> RoadmapGenerationResponse:
+    try:
+        return generate_roadmap(request)
+    except ProviderConfigurationError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except ProviderResponseError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
+    except ValidationError as error:
+        raise HTTPException(status_code=502, detail="Generated roadmap failed structured validation") from error

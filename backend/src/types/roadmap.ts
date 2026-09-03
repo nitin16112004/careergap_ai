@@ -1,4 +1,5 @@
 export type RoadmapTaskStatus = "pending" | "completed" | "skipped" | "overdue";
+export type RoadmapGenerationMode = "basic_template" | "rag";
 
 export interface RoadmapResourceLink {
     label: string;
@@ -26,7 +27,7 @@ export interface GeneratedRoadmapPayload {
     title: string;
     description: string;
     duration_weeks: number;
-    generated_by: "rag" | "basic_template";
+    generated_by: RoadmapGenerationMode;
     ai_response: Record<string, unknown>;
     weeks: RoadmapWeekDraft[];
 }
@@ -82,6 +83,7 @@ export interface RoadmapGenerationInput {
     roleName?: string;
     durationWeeks?: number;
     targetRole?: string;
+    generationMode?: RoadmapGenerationMode;
 }
 
 export interface RoadmapGenerationResult {

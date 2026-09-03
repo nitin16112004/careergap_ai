@@ -41,14 +41,48 @@ export interface RoadmapGenerationInput {
     roleName?: string;
     targetRole?: string;
     durationWeeks?: number;
+    generationMode?: "basic_template" | "rag";
 }
+
+export interface RagRoadmapJob {
+    id: string;
+    status: "queued" | "processing" | "completed" | "failed";
+    errorMessage: string | null;
+    roadmapId: string | null;
+    createdAt: string;
+    completedAt: string | null;
+}
+
+const sleep = (milliseconds: number): Promise<void> => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
 export const roadmapService = {
     async generate(input: RoadmapGenerationInput): Promise<RoadmapRecord> {
         return apiRequest<RoadmapRecord>("/roadmap/generate", {
             method: "POST",
-            body: JSON.stringify(input),
+            body: JSON.stringify({ ...input, generationMode: "basic_template" }),
         });
+    },
+
+    async queueRag(input: RoadmapGenerationInput): Promise<RagRoadmapJob> {
+        return apiRequest<RagRoadmapJob>("/roadmap/generate", {
+            method: "POST",
+            body: JSON.stringify({ ...input, generationMode: "rag" }),
+        });
+    },
+
+    async getJob(jobId: string): Promise<RagRoadmapJob> {
+        return apiRequest<RagRoadmapJob>(`/roadmap/jobs/${jobId}`);
+    },
+
+    async generateRagAndWait(input: RoadmapGenerationInput, maxPolls = 60): Promise<string> {
+        const queued = await this.queueRag(input);
+        for (let attempt = 0; attempt < maxPolls; attempt += 1) {
+            if (attempt > 0) await sleep(1_500);
+            const job = await this.getJob(queued.id);
+            if (job.status === "completed" && job.roadmapId) return job.roadmapId;
+            if (job.status === "failed") throw new Error(job.errorMessage || "AI roadmap generation failed.");
+        }
+        throw new Error("AI roadmap is still processing. Open the Roadmap page shortly to check the latest result.");
     },
 
     async list(): Promise<RoadmapRecord[]> {

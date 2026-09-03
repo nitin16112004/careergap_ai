@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, CircleDashed, Target, TriangleAlert } from "lucide-react";
+import { ArrowRight, CheckCircle2, CircleDashed, Sparkles, Target, TriangleAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthCard } from "../components/auth/AuthCard";
@@ -21,7 +21,7 @@ export const SkillGapPage = (): JSX.Element => {
   const [analysis, setAnalysis] = useState<SkillAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
-  const [generating, setGenerating] = useState(false);
+  const [generatingMode, setGeneratingMode] = useState<"rag" | "basic_template" | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -57,20 +57,41 @@ export const SkillGapPage = (): JSX.Element => {
     }
   };
 
-  const generateRoadmap = async (): Promise<void> => {
-    if (!analysis) { setError("Run a skill-gap analysis before generating a roadmap."); return; }
-    setGenerating(true); setError(""); setSuccess("");
+  const roadmapInput = (): { skillAnalysisId: string; roleId?: string; roleName?: string } | null => {
+    if (!analysis) return null;
+    return {
+      skillAnalysisId: analysis.id,
+      roleId: analysis.role_id || roleId || undefined,
+      roleName: selectedRole?.role_name,
+    };
+  };
+
+  const generateRagRoadmap = async (): Promise<void> => {
+    const input = roadmapInput();
+    if (!input) { setError("Run a skill-gap analysis before generating a roadmap."); return; }
+    setGeneratingMode("rag"); setError(""); setSuccess("AI roadmap queued. Retrieving relevant knowledge and building your weekly plan...");
     try {
-      await roadmapService.generate({
-        skillAnalysisId: analysis.id,
-        roleId: analysis.role_id || roleId || undefined,
-        roleName: selectedRole?.role_name,
-      });
-      navigate("/roadmap");
+      const roadmapId = await roadmapService.generateRagAndWait(input);
+      navigate(`/roadmap/${roadmapId}`);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not generate your roadmap.");
+      setSuccess("");
+      setError(caught instanceof Error ? caught.message : "Could not generate your AI roadmap.");
     } finally {
-      setGenerating(false);
+      setGeneratingMode(null);
+    }
+  };
+
+  const generateBasicRoadmap = async (): Promise<void> => {
+    const input = roadmapInput();
+    if (!input) { setError("Run a skill-gap analysis before generating a roadmap."); return; }
+    setGeneratingMode("basic_template"); setError(""); setSuccess("");
+    try {
+      const roadmap = await roadmapService.generate(input);
+      navigate(`/roadmap/${roadmap.id}`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not generate your basic roadmap.");
+    } finally {
+      setGeneratingMode(null);
     }
   };
 
@@ -111,7 +132,18 @@ export const SkillGapPage = (): JSX.Element => {
               <section className="learning-order-card">
                 <div className="section-heading"><div><span className="eyebrow">Next actions</span><h2>Recommended learning order</h2></div></div>
                 {learningOrder.length ? <ol className="learning-order-list">{learningOrder.map((skill, index) => <li key={`${skill}-${index}`}><span>{index + 1}</span><strong>{skill}</strong></li>)}</ol> : <p className="form-hint">No missing skills need prioritization for this role.</p>}
-                {analysis.missing_skills.length > 0 && <div className="skill-gap-roadmap-cta"><div><strong>Turn these gaps into a weekly plan</strong><p>The MVP roadmap uses your real skill analysis and curated knowledge-base content. Full embedding + pgvector + LLM RAG comes in the later RAG phase.</p></div><LoadingButton type="button" loading={generating} loadingLabel="Building roadmap..." onClick={() => { void generateRoadmap(); }}>Generate roadmap <ArrowRight size={16} /></LoadingButton></div>}
+                {analysis.missing_skills.length > 0 && (
+                  <div className="skill-gap-roadmap-cta">
+                    <div>
+                      <strong>Turn these gaps into a grounded weekly plan</strong>
+                      <p>AI mode embeds your target-role query, retrieves indexed knowledge with pgvector, and asks the configured LLM for structured weekly tasks. If AI providers are not configured, use the deterministic basic plan instead.</p>
+                    </div>
+                    <div className="roadmap-generation-actions">
+                      <LoadingButton type="button" loading={generatingMode === "rag"} disabled={generatingMode !== null} loadingLabel="Retrieving + generating..." onClick={() => { void generateRagRoadmap(); }}><Sparkles size={16} /> Generate AI roadmap <ArrowRight size={16} /></LoadingButton>
+                      <LoadingButton variant="secondary" type="button" loading={generatingMode === "basic_template"} disabled={generatingMode !== null} loadingLabel="Building basic plan..." onClick={() => { void generateBasicRoadmap(); }}>Use basic plan</LoadingButton>
+                    </div>
+                  </div>
+                )}
               </section>
             </>
           )}

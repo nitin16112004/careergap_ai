@@ -7,6 +7,7 @@ import { createRoadmapRoutes } from "./roadmap.routes";
 import { createOnboardingRoutes } from "./onboarding.routes";
 import { createJobRoleRoutes, createSkillGapRoutes } from "./skill-gap.routes";
 import { createDashboardRoutes } from "./dashboard.routes";
+import { createAdminRoutes } from "./admin.routes";
 
 export const v1Routes = Router();
 v1Routes.use("/auth", createAuthRoutes());
@@ -22,4 +23,4 @@ v1Routes.use("/resume", createPlaceholderRoutes("resume"));
 v1Routes.use("/roadmap", createRoadmapRoutes());
 v1Routes.use("/ai", createPlaceholderRoutes("ai"));
 v1Routes.use("/notifications", createPlaceholderRoutes("notifications"));
-v1Routes.use("/admin", createPlaceholderRoutes("admin"));
+v1Routes.use("/admin", createAdminRoutes());
