@@ -48,9 +48,9 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_URL: ${VITE_API_URL:-/api/v1}
-        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-https://example.supabase.co}
-        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-public-anon-key-placeholder}
+        PUBLIC_API_URL: ${VITE_API_URL:-/api/v1}
+        PUBLIC_SUPABASE_URL: ${VITE_SUPABASE_URL:-https://example.supabase.co}
+        PUBLIC_SUPABASE_ANON_VALUE: ${VITE_SUPABASE_ANON_KEY:-public-anon-key-placeholder}
     expose:
       - "8080"
 
