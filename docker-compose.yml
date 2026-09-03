@@ -1,64 +1,96 @@
 name: careerguid-ai
 
 x-backend-environment: &backend-environment
-  NODE_ENV: ${NODE_ENV:-development}
+  NODE_ENV: ${NODE_ENV:-production}
   PORT: 5000
-  FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+  FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
   AI_SERVICE_URL: http://ai-service:8000
   SUPABASE_URL: ${SUPABASE_URL:-https://example.supabase.co}
   SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-local-placeholder}
   SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-local-placeholder}
-  REDIS_URL: redis://redis:6379
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379}
   LOG_LEVEL: ${LOG_LEVEL:-info}
 
+x-backend-service: &backend-service
+  build:
+    context: ./backend
+  environment: *backend-environment
+  init: true
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+  depends_on:
+    redis:
+      condition: service_healthy
+    ai-service:
+      condition: service_healthy
+  networks:
+    - careerguid-ai
+
 services:
-  backend:
-    build:
-      context: ./backend
-    container_name: careerguid-ai-backend
-    environment: *backend-environment
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      redis:
+      backend:
         condition: service_healthy
-      ai-service:
+      frontend:
         condition: service_healthy
     ports:
-      - "5000:5000"
+      - "${EDGE_PORT:-8080}:80"
     networks:
       - careerguid-ai
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/healthz"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api/v1}
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-https://example.supabase.co}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-public-anon-key-placeholder}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    expose:
+      - "80"
+    networks:
+      - careerguid-ai
+
+  backend:
+    <<: *backend-service
+    expose:
+      - "5000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5000/api/health/live').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   resume-worker:
-    build:
-      context: ./backend
-    container_name: careerguid-ai-resume-worker
+    <<: *backend-service
     command: ["npm", "run", "worker:start"]
-    environment: *backend-environment
-    depends_on:
-      redis:
-        condition: service_healthy
-      ai-service:
-        condition: service_healthy
-    networks:
-      - careerguid-ai
 
   roadmap-worker:
-    build:
-      context: ./backend
-    container_name: careerguid-ai-roadmap-worker
+    <<: *backend-service
     command: ["npm", "run", "roadmap-worker:start"]
-    environment: *backend-environment
-    depends_on:
-      redis:
-        condition: service_healthy
-      ai-service:
-        condition: service_healthy
-    networks:
-      - careerguid-ai
+
+  scheduler:
+    <<: *backend-service
+    command: ["npm", "run", "scheduler:start"]
 
   ai-service:
     build:
       context: ./ai-service
-    container_name: careerguid-ai-service
     environment:
       RAG_EMBEDDING_DIMENSION: ${RAG_EMBEDDING_DIMENSION:-1536}
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-https://api.openai.com/v1}
@@ -68,28 +100,36 @@ services:
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-}
       AI_PROVIDER_TIMEOUT_SECONDS: ${AI_PROVIDER_TIMEOUT_SECONDS:-45}
-    ports:
-      - "8000:8000"
+    init: true
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    expose:
+      - "8000"
     networks:
       - careerguid-ai
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
-      interval: 10s
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 15s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
-    container_name: careerguid-ai-redis
-    command: ["redis-server", "--appendonly", "yes"]
-    ports:
-      - "6379:6379"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    command: ["sh", "-c", "if [ -n \"$$REDIS_PASSWORD\" ]; then exec redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\"; else exec redis-server --appendonly yes; fi"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    expose:
+      - "6379"
     volumes:
       - redis-data:/data
     networks:
       - careerguid-ai
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "if [ -n \"$$REDIS_PASSWORD\" ]; then redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG; else redis-cli ping | grep PONG; fi"]
       interval: 10s
       timeout: 5s
       retries: 5
