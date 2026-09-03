@@ -4,6 +4,7 @@ import { HttpError } from "../utils/http-error";
 
 const PLAN_SELECT = "id,plan_name,plan_slug,description,price_monthly,price_yearly,currency,resume_upload_limit,roadmap_generation_limit,ats_resume_generation_limit,ai_chat_limit,is_active";
 const USAGE_KEYS: UsageKey[] = ["resume_upload", "roadmap_generation", "ats_resume_generation", "ai_chat"];
+const PAID_PLAN_SLUGS = ["pro", "premium"];
 
 const asNumber = (value: unknown): number => {
   if (typeof value === "number") return value;
@@ -43,7 +44,7 @@ const limitFor = (plan: BillingPlan, key: UsageKey): number | null => {
   return plan.ai_chat_limit;
 };
 
-const paidPlan = (plan: BillingPlan): boolean => plan.plan_slug === "pro" || plan.plan_slug === "premium";
+const paidPlan = (plan: BillingPlan): boolean => PAID_PLAN_SLUGS.includes(plan.plan_slug);
 
 export const billingService = {
   async getPlans(): Promise<BillingPlan[]> {
@@ -69,12 +70,20 @@ export const billingService = {
 
   async getCurrentPlan(userId: string): Promise<{ plan: BillingPlan; subscription: BillingSubscription | null }> {
     const client = getSupabaseStorageClient();
+    const nowIso = new Date().toISOString();
+    const expiryResult = await client.from("subscriptions").update({ status: "expired", updated_at: nowIso })
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .not("ends_at", "is", null)
+      .lte("ends_at", nowIso);
+    if (expiryResult.error) throw new HttpError(500, "Unable to normalize subscription state.", "BILLING_SUBSCRIPTION_UPDATE_FAILED", false);
+
     const { data: subscription, error: subscriptionError } = await client
       .from("subscriptions")
       .select("id,user_id,plan_id,status,billing_cycle,starts_at,ends_at,payment_provider,provider_subscription_id,provider_customer_id,cancel_at_period_end,metadata")
       .eq("user_id", userId)
       .eq("status", "active")
-      .or(`ends_at.is.null,ends_at.gt.${new Date().toISOString()}`)
+      .or(`ends_at.is.null,ends_at.gt.${nowIso}`)
       .order("starts_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -146,6 +155,27 @@ export const billingService = {
       p_amount: amount,
     });
     if (error) throw new HttpError(500, "Unable to refund reserved plan usage.", "BILLING_USAGE_REFUND_FAILED", false);
+  },
+
+  async getUsersWithFeature(userIds: string[], _feature: BillingFeature): Promise<Set<string>> {
+    if (userIds.length === 0) return new Set();
+    const client = getSupabaseStorageClient();
+    const plansResult = await client.from("plans").select("id").in("plan_slug", PAID_PLAN_SLUGS).eq("is_active", true);
+    if (plansResult.error) throw new HttpError(500, "Unable to load paid plan entitlements.", "BILLING_PLANS_LOAD_FAILED", false);
+    const planIds = (plansResult.data ?? []).map((row) => String(row.id));
+    if (planIds.length === 0) return new Set();
+
+    const subscriptionsResult = await client.from("subscriptions")
+      .select("user_id,plan_id,ends_at")
+      .in("user_id", userIds)
+      .in("plan_id", planIds)
+      .eq("status", "active");
+    if (subscriptionsResult.error) throw new HttpError(500, "Unable to load user entitlements.", "BILLING_SUBSCRIPTION_LOAD_FAILED", false);
+
+    const now = Date.now();
+    return new Set((subscriptionsResult.data ?? [])
+      .filter((row) => !row.ends_at || Date.parse(String(row.ends_at)) > now)
+      .map((row) => String(row.user_id)));
   },
 
   async hasFeature(userId: string, _feature: BillingFeature): Promise<boolean> {
