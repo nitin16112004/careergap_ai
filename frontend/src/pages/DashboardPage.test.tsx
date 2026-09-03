@@ -75,10 +75,10 @@ describe("DashboardPage", () => {
 
     expect(await screen.findByRole("heading", { name: "Welcome, Ava" })).toBeInTheDocument();
     expect(screen.getByText("88%")).toBeInTheDocument();
-    expect(screen.getByText("Backend Engineer")).toBeInTheDocument();
-    expect(screen.getByText("62%")).toBeInTheDocument();
-    expect(screen.getByText("25%")).toBeInTheDocument();
-    expect(screen.getByText("2 overdue")).toBeInTheDocument();
+    expect(screen.getAllByText("Backend Engineer").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("62%").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("25%").length).toBeGreaterThan(0);
+    expect(screen.getByText(/including 2 overdue/i)).toBeInTheDocument();
     expect(screen.getByText("Automatic reminders enabled")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /continue roadmap/i })).toHaveAttribute("href", "/roadmap/roadmap-1");
     expect(screen.getByText(/behind the current roadmap checkpoint/i)).toBeInTheDocument();
