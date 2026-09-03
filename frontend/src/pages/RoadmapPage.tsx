@@ -73,94 +73,93 @@ export const RoadmapPage = (): JSX.Element => {
     const missingSkills = Array.isArray(state.roadmap?.ai_response?.missing_skills) ? state.roadmap.ai_response.missing_skills as string[] : [];
 
     return (
-        <AuthCard className="onboarding-card" eyebrow="Career roadmap" title="Your roadmap" subtitle="A retrieval-grounded plan that updates as you complete your weekly milestones.">
+        <AuthCard className="onboarding-card" eyebrow="Career roadmap" title="Your roadmap" subtitle="A skill-gap-driven MVP plan that updates as you complete your weekly milestones. Full embedding + pgvector + LLM RAG is a later documented phase.">
             <ErrorMessage>{error}</ErrorMessage>
             <SuccessMessage>{success}</SuccessMessage>
 
             {state.loading ? (
-                <div className="review-loading"><CircleDashed size={16} className="spin-icon" /> Loading your career roadmap...</div>
+                <div className="review-loading"><CircleDashed className="spin-icon" size={18} /> Loading your roadmap...</div>
             ) : !state.roadmap ? (
                 <div className="empty-state-box">
                     <Sparkles size={18} />
                     <div>
-                        <h3>No roadmap generated yet</h3>
-                        <p>No roadmap has been generated yet.</p>
+                        <h3>No roadmap yet</h3>
+                        <p>Complete your skill-gap analysis first, then generate a weekly plan from your actual missing skills.</p>
                     </div>
-                    <Link to="/dashboard" className="button button-secondary">Back to dashboard</Link>
+                    <Link className="button button-primary" to="/skill-gap">Analyze skill gap</Link>
                 </div>
             ) : (
                 <>
-                    <div className="roadmap-overview">
-                        <div>
-                            <span className="eyebrow">{state.roadmap.title}</span>
-                            <h2>{state.roadmap.title}</h2>
+                    <section className="roadmap-summary-card">
+                        <div className="roadmap-summary-copy">
+                            <span className="eyebrow">Target role</span>
+                            <h2>{String(targetRole)}</h2>
                             <p>{state.roadmap.description}</p>
-                            <div className="roadmap-meta-row">
-                                <span className="roadmap-badge">Target role: {String(targetRole)}</span>
-                                <span className="roadmap-badge">{state.roadmap.duration_weeks ?? 0} week plan</span>
-                            </div>
-                            {missingSkills.length > 0 && (
-                                <div className="roadmap-skill-gaps">
-                                    <h4>Skill gaps</h4>
-                                    <div className="skill-gap-tags">
-                                        {missingSkills.map((skill) => <span key={skill}>{skill}</span>)}
-                                    </div>
-                                </div>
-                            )}
                         </div>
-                        <div className="roadmap-progress-card">
+                        <div className="roadmap-progress-stat">
                             <strong>{progress}%</strong>
                             <span>{completedTasks} of {totalTasks} tasks complete</span>
-                            <div className="progress-bar"><span style={{ width: `${progress}%` }} /></div>
                         </div>
+                    </section>
+
+                    <div className="progress-bar" aria-label={`${progress}% roadmap complete`}>
+                        <span style={{ width: `${progress}%` }} />
                     </div>
 
-                    <div className="roadmap-weeks-layout">
+                    {missingSkills.length > 0 && (
+                        <section className="roadmap-missing-skills">
+                            <span className="eyebrow">Skills this plan is closing</span>
+                            <div className="skill-chip-list">
+                                {missingSkills.map((skill) => <span className="skill-chip missing" key={skill}>{skill}</span>)}
+                            </div>
+                        </section>
+                    )}
+
+                    <div className="roadmap-week-list">
                         {state.roadmap.weeks.map((week) => (
-                            <div className="roadmap-week-card" key={week.id}>
-                                <div className="roadmap-week-header">
+                            <section className="roadmap-week-card" key={week.id}>
+                                <header className="roadmap-week-header">
                                     <div>
                                         <span className="eyebrow">Week {week.week_number}</span>
-                                        <h3>{week.title}</h3>
+                                        <h2>{week.title}</h2>
+                                        {week.description && <p>{week.description}</p>}
                                     </div>
-                                    {week.due_date && <span className="roadmap-date">Due {week.due_date}</span>}
-                                </div>
-
-                                <p>{week.description}</p>
-
+                                    {week.due_date && <span className="roadmap-due-date"><Clock3 size={14} /> Due {week.due_date}</span>}
+                                </header>
                                 <div className="roadmap-task-list">
                                     {week.tasks.map((task) => {
-                                        const isComplete = task.status === "completed";
+                                        const completed = task.status === "completed";
                                         return (
-                                            <div className={`roadmap-task-item ${isComplete ? "completed" : ""}`} key={task.id}>
-                                                <div className="roadmap-task-main">
-                                                    <div className="task-toggle">
-                                                        <button type="button" className="task-check" aria-label={isComplete ? "Mark as incomplete" : "Mark as complete"} onClick={() => { void toggleTask(task.id); }} disabled={state.submittingTaskId === task.id}>
-                                                            {isComplete ? <CheckCircle2 size={18} /> : <Clock3 size={18} />}
-                                                        </button>
-                                                    </div>
-                                                    <div>
-                                                        <strong>{task.task_title}</strong>
-                                                        {task.task_description && <p>{task.task_description}</p>}
-                                                        {task.resource_links.length > 0 && (
-                                                            <div className="roadmap-links">{task.resource_links.map((link) => <a key={`${task.id}-${link.url}`} href={link.url} target="_blank" rel="noreferrer">{link.label}</a>)}</div>
-                                                        )}
-                                                    </div>
+                                            <article className={`roadmap-task ${completed ? "roadmap-task-complete" : ""}`} key={task.id}>
+                                                <button
+                                                    type="button"
+                                                    className="roadmap-task-check"
+                                                    aria-label={completed ? `Reopen ${task.task_title}` : `Complete ${task.task_title}`}
+                                                    onClick={() => { void toggleTask(task.id); }}
+                                                    disabled={state.submittingTaskId === task.id}
+                                                >
+                                                    {state.submittingTaskId === task.id ? <CircleDashed className="spin-icon" size={18} /> : completed ? <CheckCircle2 size={18} /> : <span />}
+                                                </button>
+                                                <div className="roadmap-task-copy">
+                                                    <div className="roadmap-task-heading"><strong>{task.task_title}</strong><span>{describeStatus(task.status)}</span></div>
+                                                    {task.task_description && <p>{task.task_description}</p>}
+                                                    {task.resource_links.length > 0 && (
+                                                        <div className="roadmap-resource-links">
+                                                            {task.resource_links.map((resource, index) => <a key={`${resource.url}-${index}`} href={resource.url} target="_blank" rel="noreferrer">{resource.label}</a>)}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                <div className="task-status-pill">{describeStatus(task.status)}</div>
-                                            </div>
+                                            </article>
                                         );
                                     })}
                                 </div>
-                            </div>
+                            </section>
                         ))}
                     </div>
 
-                    <div className="roadmap-footer-actions">
-                        <Button type="button" variant="secondary" onClick={() => void loadRoadmap()}><Sparkles size={15} /> Refresh roadmap</Button>
-                        <LoadingButton type="button" loading={state.submittingTaskId !== null} loadingLabel="Updating..." onClick={() => { const firstTask = state.roadmap?.weeks[0]?.tasks[0]; if (firstTask) void toggleTask(firstTask.id); }}>
-                            <CheckCircle2 size={15} /> Complete next task
-                        </LoadingButton>
+                    <div className="review-bottom-actions">
+                        <Button type="button" variant="secondary" onClick={() => { void loadRoadmap(); }}>Refresh roadmap</Button>
+                        <Link className="button button-secondary" to="/dashboard">Back to dashboard</Link>
                     </div>
                 </>
             )}
