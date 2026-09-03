@@ -1,6 +1,9 @@
 import { Worker, type Job } from "bullmq";
+import { getEnv } from "../config/env";
+import { logger } from "../config/logger";
 import { getBullMqConnection } from "../config/redis";
 import { getSupabaseStorageClient } from "../config/supabase";
+import { writeDeadLetter } from "./dead-letter";
 import { ragRoadmapService } from "../services/rag-roadmap.service";
 import type { RoadmapGenerationInput } from "../types/roadmap";
 
@@ -34,10 +37,16 @@ const syncRetryState = async (job: Job<RagRoadmapJobData>, error: Error): Promis
     .eq("job_type", "roadmap_rag");
 
   if (updateError) {
-    console.error("Unable to synchronize RAG retry state", {
-      jobId: job.id,
-      aiJobId: job.data.aiJobId,
+    logger.error({ err: updateError, jobId: job.id, aiJobId: job.data.aiJobId, attemptsMade: job.attemptsMade }, "unable to synchronize RAG retry state");
+  }
+
+  if (!retryScheduled) {
+    await writeDeadLetter({
+      sourceQueue: "roadmapGenerationQueue",
+      sourceJobId: job.id,
       attemptsMade: job.attemptsMade,
+      errorMessage: error.message,
+      context: { aiJobId: job.data.aiJobId },
     });
   }
 };
@@ -50,11 +59,7 @@ const syncCompletedRetryCount = async (job: Job<RagRoadmapJobData>): Promise<voi
     .eq("id", job.data.aiJobId)
     .eq("job_type", "roadmap_rag");
   if (error) {
-    console.error("Unable to record successful RAG retry count", {
-      jobId: job.id,
-      aiJobId: job.data.aiJobId,
-      attemptsMade: job.attemptsMade,
-    });
+    logger.error({ err: error, jobId: job.id, aiJobId: job.data.aiJobId, attemptsMade: job.attemptsMade }, "unable to record successful RAG retry count");
   }
 };
 
@@ -66,28 +71,47 @@ export const roadmapGenerationWorker = new Worker<RagRoadmapJobData>("roadmapGen
 });
 
 roadmapGenerationWorker.on("completed", (job) => {
-  console.info("RAG roadmap generation completed", {
-    jobId: job.id,
-    aiJobId: job.data.aiJobId,
-    attemptsMade: job.attemptsMade,
-  });
+  logger.info({ jobId: job.id, aiJobId: job.data.aiJobId, attemptsMade: job.attemptsMade }, "RAG roadmap generation completed");
   void syncCompletedRetryCount(job);
 });
 
 roadmapGenerationWorker.on("failed", (job, error) => {
-  console.error("RAG roadmap generation attempt failed", {
-    jobId: job?.id,
-    aiJobId: job?.data.aiJobId,
-    attemptsMade: job?.attemptsMade,
-    message: error.message,
-  });
+  logger.error({ err: error, jobId: job?.id, aiJobId: job?.data.aiJobId, attemptsMade: job?.attemptsMade }, "RAG roadmap generation attempt failed");
   if (job) void syncRetryState(job, error);
 });
 
-const shutdown = async (): Promise<void> => {
-  await roadmapGenerationWorker.close();
-  process.exit(0);
+let shuttingDown = false;
+const shutdown = async (signal: string): Promise<void> => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  logger.info({ signal }, "roadmap worker shutdown started");
+
+  const timeout = setTimeout(() => {
+    logger.error({ timeoutMs: getEnv().SHUTDOWN_TIMEOUT_MS }, "roadmap worker graceful shutdown timed out");
+    void roadmapGenerationWorker.close(true);
+  }, getEnv().SHUTDOWN_TIMEOUT_MS);
+  timeout.unref();
+
+  try {
+    await roadmapGenerationWorker.close();
+    logger.info("roadmap worker shutdown completed");
+  } catch (error) {
+    logger.error({ err: error }, "roadmap worker shutdown failed");
+    process.exitCode = 1;
+  } finally {
+    clearTimeout(timeout);
+  }
 };
 
-process.once("SIGINT", () => { void shutdown(); });
-process.once("SIGTERM", () => { void shutdown(); });
+process.once("SIGINT", () => { void shutdown("SIGINT"); });
+process.once("SIGTERM", () => { void shutdown("SIGTERM"); });
+process.once("uncaughtException", (error) => {
+  logger.fatal({ err: error }, "roadmap worker uncaught exception");
+  process.exitCode = 1;
+  void shutdown("uncaughtException");
+});
+process.once("unhandledRejection", (reason) => {
+  logger.fatal({ err: reason }, "roadmap worker unhandled rejection");
+  process.exitCode = 1;
+  void shutdown("unhandledRejection");
+});

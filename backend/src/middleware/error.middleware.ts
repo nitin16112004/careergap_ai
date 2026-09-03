@@ -10,7 +10,13 @@ export const errorMiddleware: ErrorRequestHandler = (error, request, response, _
   const statusCode = knownError ? error.statusCode : 500;
   const code = knownError ? error.code : "INTERNAL_ERROR";
   const message = knownError && error.expose ? error.message : "Internal server error";
+  const requestId = typeof request.id === "string" ? request.id : undefined;
 
-  request.log?.error({ err: error, code, statusCode }, "request failed");
-  response.status(statusCode).json({ success: false, message, errorCode: code });
+  request.log?.error({ err: error, code, statusCode, requestId }, "request failed");
+  response.status(statusCode).json({
+    success: false,
+    message,
+    errorCode: code,
+    ...(requestId ? { requestId } : {}),
+  });
 };
