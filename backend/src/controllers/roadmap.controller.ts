@@ -1,0 +1,158 @@
+import type { NextFunction, Request, Response } from "express";
+import type { RoadmapGenerationMode, RoadmapTaskStatus } from "../types/roadmap";
+import { billingService } from "../services/billing.service";
+import { roadmapService } from "../services/roadmap.service";
+import { roadmapProgressService } from "../services/roadmap-progress.service";
+import { ragRoadmapService } from "../services/rag-roadmap.service";
+import { HttpError } from "../utils/http-error";
+
+const userIdFrom = (request: Request): string => {
+    const userId = request.user?.userId ?? request.auth?.userId;
+    if (!userId) throw new HttpError(401, "Authentication required.", "AUTH_REQUIRED");
+    return userId;
+};
+
+const roadmapIdFrom = (request: Request): string => {
+    const value = request.params.roadmapId;
+    if (typeof value !== "string") throw new HttpError(400, "A valid roadmap id is required.", "ROADMAP_ID_INVALID");
+    return value;
+};
+
+const jobIdFrom = (request: Request): string => {
+    const value = request.params.jobId;
+    if (typeof value !== "string") throw new HttpError(400, "A valid AI roadmap job id is required.", "RAG_JOB_ID_INVALID");
+    return value;
+};
+
+const taskIdFrom = (request: Request): string => {
+    const value = request.params.taskId;
+    if (typeof value !== "string") throw new HttpError(400, "A valid task id is required.", "ROADMAP_TASK_ID_INVALID");
+    return value;
+};
+
+export const generateRoadmap = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
+    let reservedUserId: string | null = null;
+    try {
+        const userId = userIdFrom(request);
+        const { skillAnalysisId, roleId, roleName, targetRole, durationWeeks, generationMode } = request.body;
+        const mode: RoadmapGenerationMode = generationMode === "rag" ? "rag" : "basic_template";
+        const input = {
+            skillAnalysisId: skillAnalysisId ?? null,
+            roleId: roleId ?? null,
+            roleName: typeof roleName === "string" ? roleName : undefined,
+            targetRole: typeof targetRole === "string" ? targetRole : undefined,
+            durationWeeks: typeof durationWeeks === "number" ? durationWeeks : undefined,
+            generationMode: mode,
+        };
+
+        if (mode === "rag") await billingService.requireFeature(userId, "advanced_roadmap");
+        await billingService.consume(userId, "roadmap_generation");
+        reservedUserId = userId;
+
+        if (mode === "rag") {
+            const job = await ragRoadmapService.enqueue(userId, input);
+            response.status(202).json({ success: true, message: "AI roadmap generation queued.", data: job });
+            return;
+        }
+
+        const result = await roadmapService.generate(userId, input);
+        response.status(201).json({ success: true, message: "Roadmap generated successfully.", data: result });
+    } catch (error) {
+        if (reservedUserId) await billingService.refund(reservedUserId, "roadmap_generation").catch(() => undefined);
+        next(error);
+    }
+};
+
+export const getRoadmapJob = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
+    try {
+        const result = await ragRoadmapService.getJob(userIdFrom(request), jobIdFrom(request));
+        response.json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const listRoadmaps = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
+    try {
+        const result = await roadmapService.list(userIdFrom(request));
+        response.json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getRoadmap = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
+    try {
+        const result = await roadmapService.get(userIdFrom(request), roadmapIdFrom(request));
+        response.json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getRoadmapProgress = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
+    try {
+        const result = await roadmapProgressService.get(userIdFrom(request), roadmapIdFrom(request));
+        response.json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const updateRoadmap = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
+    try {
+        const result = await roadmapService.update(userIdFrom(request), roadmapIdFrom(request), request.body);
+        response.json({ success: true, message: "Roadmap updated successfully.", data: result });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const deleteRoadmap = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
+    try {
+        await roadmapService.delete(userIdFrom(request), roadmapIdFrom(request));
+        response.status(204).send();
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const updateTaskStatus = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
+    try {
+        const nextStatus = request.body?.status;
+        if (typeof nextStatus !== "string") {
+            throw new HttpError(400, "A valid task status is required.", "ROADMAP_TASK_STATUS_INVALID");
+        }
+
+        const validStatuses: RoadmapTaskStatus[] = ["pending", "completed", "skipped", "overdue"];
+        if (!validStatuses.includes(nextStatus as RoadmapTaskStatus)) {
+            throw new HttpError(400, "A valid task status is required.", "ROADMAP_TASK_STATUS_INVALID");
+        }
+
+        const result = await roadmapService.updateTaskStatus(userIdFrom(request), roadmapIdFrom(request), taskIdFrom(request), nextStatus as RoadmapTaskStatus);
+        response.json({ success: true, message: "Roadmap task status updated.", data: result });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const completeTask = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
+    try {
+        const result = await roadmapService.completeTask(userIdFrom(request), roadmapIdFrom(request), taskIdFrom(request));
+        response.json({ success: true, message: "Roadmap task marked as complete.", data: result });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const roadmapController = {
+    generateRoadmap,
+    getRoadmapJob,
+    listRoadmaps,
+    getRoadmap,
+    getRoadmapProgress,
+    updateRoadmap,
+    deleteRoadmap,
+    updateTaskStatus,
+    completeTask,
+};
