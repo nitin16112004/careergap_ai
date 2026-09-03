@@ -8,6 +8,8 @@ import { createOnboardingRoutes } from "./onboarding.routes";
 import { createJobRoleRoutes, createSkillGapRoutes } from "./skill-gap.routes";
 import { createDashboardRoutes } from "./dashboard.routes";
 import { createAdminRoutes } from "./admin.routes";
+import { createReminderRoutes } from "./reminder.routes";
+import { createNotificationRoutes } from "./notification.routes";
 
 export const v1Routes = Router();
 v1Routes.use("/auth", createAuthRoutes());
@@ -21,6 +23,7 @@ v1Routes.use("/resumes", createResumeRoutes());
 v1Routes.use("/resume-builder", createAtsResumeRoutes());
 v1Routes.use("/resume", createPlaceholderRoutes("resume"));
 v1Routes.use("/roadmap", createRoadmapRoutes());
+v1Routes.use("/reminders", createReminderRoutes());
+v1Routes.use("/notifications", createNotificationRoutes());
 v1Routes.use("/ai", createPlaceholderRoutes("ai"));
-v1Routes.use("/notifications", createPlaceholderRoutes("notifications"));
 v1Routes.use("/admin", createAdminRoutes());
