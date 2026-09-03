@@ -1,4 +1,4 @@
-import { ArrowRight, BarChart3, CheckCircle2, CircleDashed, FileText, Map, Target, UserRound } from "lucide-react";
+import { AlertTriangle, ArrowRight, BarChart3, Bell, CheckCircle2, CircleDashed, FileText, Map, Settings2, Target, UserRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AuthCard } from "../components/auth/AuthCard";
@@ -8,6 +8,12 @@ import { dashboardService, type DashboardSummary } from "../services/dashboard.s
 const toArray = (value: unknown): string[] => Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 const toNumber = (value: unknown): number => typeof value === "number" && Number.isFinite(value) ? value : 0;
 const toText = (value: unknown, fallback = "Not set"): string => typeof value === "string" && value.trim() ? value : fallback;
+
+const formatReminderDate = (value: string | null | undefined): string => {
+  if (!value) return "No reminder sent yet";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+};
 
 export const DashboardPage = (): JSX.Element => {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -27,7 +33,7 @@ export const DashboardPage = (): JSX.Element => {
     if (!summary) return { to: "/skill-gap", label: "Analyze skill gap" };
     if (!summary.skillAnalysis) return { to: "/skill-gap", label: "Analyze skill gap" };
     if (!summary.roadmap) return { to: "/skill-gap", label: "Build your roadmap" };
-    if (summary.pendingTasks > 0) return { to: "/roadmap", label: "Continue roadmap" };
+    if (summary.pendingTasks > 0) return { to: `/roadmap/${String(summary.roadmap.id)}`, label: "Continue roadmap" };
     return { to: "/resume-builder", label: "Improve ATS resume" };
   }, [summary]);
 
@@ -42,10 +48,25 @@ export const DashboardPage = (): JSX.Element => {
   const missingSkills = toArray(analysis?.missing_skills);
   const roadmapProgress = toNumber(roadmap?.progress_percentage);
   const displayName = toText(profile.full_name, "there").split(" ")[0];
+  const reminder = summary.reminder;
+  const reminderProgress = reminder.progress;
+  const roadmapHref = roadmap?.id ? `/roadmap/${String(roadmap.id)}` : "/roadmap";
+  const reminderEnabled = reminder.preferences.emailEnabled;
 
   return (
     <AuthCard className="onboarding-card dashboard-card" eyebrow="Career workspace" title={`Welcome, ${displayName}`} subtitle="Everything here is based on the profile and progress stored in your account—not demo data.">
       <ErrorMessage>{error}</ErrorMessage>
+
+      {reminderProgress?.behindSchedule && (
+        <div className="reminder-banner reminder-banner-warning">
+          <AlertTriangle size={19} />
+          <div>
+            <strong>You are behind the current roadmap checkpoint.</strong>
+            <span>{reminderProgress.overdueTasks > 0 ? `${reminderProgress.overdueTasks} overdue task${reminderProgress.overdueTasks === 1 ? "" : "s"} need attention.` : "Complete a focused task this week to catch up."}</span>
+          </div>
+          <Link className="text-link" to={roadmapHref}>Open roadmap</Link>
+        </div>
+      )}
 
       <div className="dashboard-hero-row">
         <div>
@@ -61,6 +82,8 @@ export const DashboardPage = (): JSX.Element => {
         <article className="career-metric-card"><Target size={19} /><span>Target role</span><strong className="metric-text">{toText(profile.target_job_role)}</strong><p>{toText(profile.work_preference, "Preference not set")}</p></article>
         <article className="career-metric-card"><BarChart3 size={19} /><span>Skill match</span><strong>{analysis ? `${toNumber(analysis.match_score)}%` : "—"}</strong><p>{analysis ? `${missingSkills.length} skill gaps` : "Run your first analysis"}</p></article>
         <article className="career-metric-card"><Map size={19} /><span>Roadmap progress</span><strong>{roadmap ? `${roadmapProgress}%` : "—"}</strong><p>{roadmap ? `${summary.pendingTasks} pending · ${summary.completedTasks} complete` : "No roadmap yet"}</p></article>
+        <article className="career-metric-card"><AlertTriangle size={19} /><span>Overdue tasks</span><strong>{roadmap ? summary.overdueTasks : "—"}</strong><p>{summary.overdueTasks > 0 ? "Needs attention" : roadmap ? "On due-date track" : "No roadmap yet"}</p></article>
+        <article className="career-metric-card"><Bell size={19} /><span>Notifications</span><strong>{reminder.unreadNotifications}</strong><p>{reminderEnabled ? "Automatic reminders enabled" : "Email reminders paused"}</p></article>
       </div>
 
       <div className="dashboard-content-grid">
@@ -79,9 +102,20 @@ export const DashboardPage = (): JSX.Element => {
           {roadmap ? <>
             <div className="dashboard-score-row"><strong>{roadmapProgress}%</strong><span>{summary.completedTasks} tasks complete</span></div>
             <div className="progress-bar"><span style={{ width: `${Math.max(0, Math.min(100, roadmapProgress))}%` }} /></div>
-            <p>{summary.pendingTasks > 0 ? `${summary.pendingTasks} tasks are still pending. Keep the weekly plan moving.` : "Your current roadmap tasks are complete."}</p>
-            <Link className="text-link dashboard-link" to="/roadmap">Open roadmap <ArrowRight size={14} /></Link>
+            <p>{summary.pendingTasks > 0 ? `${summary.pendingTasks} tasks are still pending${summary.overdueTasks > 0 ? `, including ${summary.overdueTasks} overdue` : ""}.` : "Your current roadmap tasks are complete."}</p>
+            <Link className="text-link dashboard-link" to={roadmapHref}>Open roadmap <ArrowRight size={14} /></Link>
           </> : <div className="empty-state-box"><Map size={18} /><div><h3>No roadmap yet</h3><p>Run skill-gap analysis first, then generate a plan from real missing skills.</p></div><Link className="button button-secondary" to="/skill-gap">Start from skill gap</Link></div>}
+        </section>
+
+        <section className="dashboard-panel reminder-status-panel">
+          <div className="section-heading"><div><span className="eyebrow">Automation</span><h2>Reminder status</h2></div><Bell size={18} /></div>
+          <div className="dashboard-status-line">{reminderEnabled ? <CheckCircle2 size={17} /> : <Bell size={17} />}<strong>{reminderEnabled ? "Automatic email reminders are on" : "Email reminders are paused"}</strong></div>
+          {reminder.lastReminder ? <>
+            <p><strong>Last reminder:</strong> {formatReminderDate(reminder.lastReminder.sent_at ?? reminder.lastReminder.created_at)}</p>
+            <p>{reminder.lastReminder.reason || "Roadmap reminder"}</p>
+          </> : <p>No reminder has been generated for this account yet.</p>}
+          {reminderProgress?.currentWeek && <p className="form-hint">Week {reminderProgress.currentWeek.weekNumber}: {reminderProgress.currentWeek.pendingTasks} pending · {reminderProgress.currentWeek.overdueTasks} overdue.</p>}
+          <Link className="text-link dashboard-link" to="/settings">Reminder settings <Settings2 size={14} /></Link>
         </section>
 
         <section className="dashboard-panel">
