@@ -18,6 +18,16 @@ const envSchema = z.object({
   SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(60_000).default(10_000),
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(1),
   REDIS_CONNECT_TIMEOUT_MS: z.coerce.number().int().min(500).max(30_000).default(5_000),
+  EMAIL_PROVIDER: z.enum(["resend", "console"]).default("console"),
+  EMAIL_PROVIDER_BASE_URL: z.string().url().default("https://api.resend.com"),
+  EMAIL_PROVIDER_API_KEY: z.string().default(""),
+  EMAIL_FROM: z.string().default(""),
+  REMINDER_CRON_PATTERN: z.string().min(1).default("0 0 9 * * 1"),
+  REMINDER_CRON_TIMEZONE: z.string().min(1).default("UTC"),
+  REMINDER_INACTIVE_DAYS: z.coerce.number().int().min(1).max(90).default(7),
+  REMINDER_SCAN_BATCH_SIZE: z.coerce.number().int().min(1).max(2_000).default(500),
+  REMINDER_EMAIL_JOB_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
+  ACTIVITY_TOUCH_INTERVAL_SECONDS: z.coerce.number().int().min(30).max(3_600).default(300),
 });
 
 export type Env = z.infer<typeof envSchema>;
