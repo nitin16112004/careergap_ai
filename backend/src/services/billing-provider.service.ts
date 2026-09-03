@@ -15,13 +15,6 @@ const safeEqualHex = (expected: string, actual: string): boolean => {
   }
 };
 
-const addPeriod = (date: Date, cycle: BillingCycle): Date => {
-  const next = new Date(date);
-  if (cycle === "monthly") next.setUTCMonth(next.getUTCMonth() + 1);
-  else next.setUTCFullYear(next.getUTCFullYear() + 1);
-  return next;
-};
-
 const providerError = (provider: BillingProvider, status: number): HttpError => new HttpError(
   502,
   `${provider === "razorpay" ? "Razorpay" : "Stripe"} checkout is temporarily unavailable.`,
@@ -81,56 +74,23 @@ const activateTransaction = async (input: {
   providerEventId?: string | null;
   rawResponse?: unknown;
 }): Promise<void> => {
-  const client = getSupabaseStorageClient();
-  const { data: transaction, error: transactionError } = await client
-    .from("payment_transactions")
-    .select("id,user_id,plan_id,billing_cycle,status")
-    .eq("provider", input.provider)
-    .eq("provider_order_id", input.providerOrderId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const { error } = await getSupabaseStorageClient().rpc("activate_paid_subscription", {
+    p_provider: input.provider,
+    p_provider_order_id: input.providerOrderId,
+    p_provider_payment_id: input.providerPaymentId ?? null,
+    p_provider_subscription_id: input.providerSubscriptionId ?? null,
+    p_provider_customer_id: input.providerCustomerId ?? null,
+    p_provider_event_id: input.providerEventId ?? null,
+    p_raw_response: input.rawResponse ?? {},
+  });
 
-  if (transactionError || !transaction?.id || !transaction.plan_id) {
-    throw new HttpError(404, "Checkout transaction was not found.", "BILLING_TRANSACTION_NOT_FOUND");
-  }
-  if (transaction.status === "paid") return;
-
-  const cycle = transaction.billing_cycle === "yearly" ? "yearly" : "monthly";
-  const startsAt = new Date();
-  const endsAt = addPeriod(startsAt, cycle);
-
-  const cancelExisting = await client.from("subscriptions")
-    .update({ status: "cancelled", cancel_at_period_end: false, updated_at: startsAt.toISOString() })
-    .eq("user_id", transaction.user_id)
-    .eq("status", "active");
-  if (cancelExisting.error) throw new HttpError(500, "Unable to replace current subscription.", "BILLING_SUBSCRIPTION_UPDATE_FAILED", false);
-
-  const { data: subscription, error: subscriptionError } = await client.from("subscriptions").insert({
-    user_id: transaction.user_id,
-    plan_id: transaction.plan_id,
-    status: "active",
-    billing_cycle: cycle,
-    starts_at: startsAt.toISOString(),
-    ends_at: endsAt.toISOString(),
-    payment_provider: input.provider,
-    provider_subscription_id: input.providerSubscriptionId ?? null,
-    provider_customer_id: input.providerCustomerId ?? null,
-    cancel_at_period_end: input.provider === "razorpay",
-    metadata: { providerOrderId: input.providerOrderId },
-  }).select("id").single();
-  if (subscriptionError || !subscription?.id) {
+  if (error) {
+    const message = typeof error.message === "string" ? error.message.toLowerCase() : "";
+    if (message.includes("transaction not found")) {
+      throw new HttpError(404, "Checkout transaction was not found.", "BILLING_TRANSACTION_NOT_FOUND");
+    }
     throw new HttpError(500, "Unable to activate subscription.", "BILLING_SUBSCRIPTION_ACTIVATION_FAILED", false);
   }
-
-  const transactionUpdate = await client.from("payment_transactions").update({
-    subscription_id: subscription.id,
-    provider_payment_id: input.providerPaymentId ?? null,
-    provider_event_id: input.providerEventId ?? null,
-    status: "paid",
-    raw_response: input.rawResponse ?? {},
-  }).eq("id", transaction.id);
-  if (transactionUpdate.error) throw new HttpError(500, "Unable to persist payment success.", "BILLING_TRANSACTION_UPDATE_FAILED", false);
 };
 
 const markTransactionFailed = async (provider: BillingProvider, providerOrderId: string, rawResponse: unknown): Promise<void> => {
@@ -143,7 +103,8 @@ const markTransactionFailed = async (provider: BillingProvider, providerOrderId:
 };
 
 const claimWebhookEvent = async (provider: BillingProvider, eventId: string, eventType: string, payload: unknown): Promise<boolean> => {
-  const { error } = await getSupabaseStorageClient().from("billing_webhook_events").insert({
+  const client = getSupabaseStorageClient();
+  const { error } = await client.from("billing_webhook_events").insert({
     provider,
     provider_event_id: eventId,
     event_type: eventType,
@@ -151,8 +112,29 @@ const claimWebhookEvent = async (provider: BillingProvider, eventId: string, eve
     status: "processing",
   });
   if (!error) return true;
-  if ((error as { code?: string }).code === "23505") return false;
-  throw new HttpError(500, "Unable to record billing webhook.", "BILLING_WEBHOOK_LOG_FAILED", false);
+  if ((error as { code?: string }).code !== "23505") {
+    throw new HttpError(500, "Unable to record billing webhook.", "BILLING_WEBHOOK_LOG_FAILED", false);
+  }
+
+  const existing = await client.from("billing_webhook_events")
+    .select("status")
+    .eq("provider", provider)
+    .eq("provider_event_id", eventId)
+    .maybeSingle();
+  if (existing.error || !existing.data) {
+    throw new HttpError(500, "Unable to recover billing webhook state.", "BILLING_WEBHOOK_LOG_FAILED", false);
+  }
+  if (existing.data.status !== "failed") return false;
+
+  const retry = await client.from("billing_webhook_events").update({
+    status: "processing",
+    event_type: eventType,
+    payload,
+    error_message: null,
+    processed_at: null,
+  }).eq("provider", provider).eq("provider_event_id", eventId).eq("status", "failed");
+  if (retry.error) throw new HttpError(500, "Unable to retry billing webhook.", "BILLING_WEBHOOK_LOG_FAILED", false);
+  return true;
 };
 
 const completeWebhookEvent = async (provider: BillingProvider, eventId: string, error?: Error): Promise<void> => {
@@ -189,6 +171,13 @@ type JsonRecord = Record<string, unknown>;
 const record = (value: unknown): JsonRecord => value && typeof value === "object" ? value as JsonRecord : {};
 const stringValue = (value: unknown): string | null => typeof value === "string" && value.length > 0 ? value : null;
 
+const updateStripeSubscription = async (providerSubscriptionId: string, patch: Record<string, unknown>): Promise<void> => {
+  const { error } = await getSupabaseStorageClient().from("subscriptions").update(patch)
+    .eq("payment_provider", "stripe")
+    .eq("provider_subscription_id", providerSubscriptionId);
+  if (error) throw new HttpError(500, "Unable to synchronize Stripe subscription state.", "BILLING_SUBSCRIPTION_UPDATE_FAILED", false);
+};
+
 const processRazorpayWebhook = async (event: JsonRecord, eventId: string): Promise<void> => {
   const eventType = stringValue(event.event) ?? "unknown";
   const payload = record(event.payload);
@@ -211,8 +200,7 @@ const processRazorpayWebhook = async (event: JsonRecord, eventId: string): Promi
 
 const processStripeWebhook = async (event: JsonRecord, eventId: string): Promise<void> => {
   const eventType = stringValue(event.type) ?? "unknown";
-  const object = record(record(record(event.data).object));
-  const client = getSupabaseStorageClient();
+  const object = record(record(event.data).object);
 
   if (eventType === "checkout.session.completed") {
     const sessionId = stringValue(object.id);
@@ -229,18 +217,17 @@ const processStripeWebhook = async (event: JsonRecord, eventId: string): Promise
     return;
   }
 
-  const providerSubscriptionId = stringValue(object.subscription) ?? (eventType.startsWith("customer.subscription.") ? stringValue(object.id) : null);
+  const providerSubscriptionId = stringValue(object.subscription)
+    ?? (eventType.startsWith("customer.subscription.") ? stringValue(object.id) : null);
   if (!providerSubscriptionId) return;
 
   if (eventType === "invoice.payment_failed") {
-    await client.from("subscriptions").update({ status: "payment_failed", updated_at: new Date().toISOString() })
-      .eq("payment_provider", "stripe").eq("provider_subscription_id", providerSubscriptionId);
+    await updateStripeSubscription(providerSubscriptionId, { status: "payment_failed", updated_at: new Date().toISOString() });
     return;
   }
 
   if (eventType === "customer.subscription.deleted") {
-    await client.from("subscriptions").update({ status: "cancelled", cancel_at_period_end: false, updated_at: new Date().toISOString() })
-      .eq("payment_provider", "stripe").eq("provider_subscription_id", providerSubscriptionId);
+    await updateStripeSubscription(providerSubscriptionId, { status: "cancelled", cancel_at_period_end: false, updated_at: new Date().toISOString() });
     return;
   }
 
@@ -249,15 +236,18 @@ const processStripeWebhook = async (event: JsonRecord, eventId: string): Promise
     const periodEnd = typeof object.current_period_end === "number"
       ? new Date(object.current_period_end * 1000).toISOString()
       : undefined;
-    const nextStatus = stripeStatus === "active" || stripeStatus === "trialing" ? "active" : stripeStatus === "past_due" ? "payment_failed" : undefined;
+    const nextStatus = stripeStatus === "active" || stripeStatus === "trialing"
+      ? "active"
+      : stripeStatus === "past_due" || stripeStatus === "unpaid"
+        ? "payment_failed"
+        : undefined;
     const patch: Record<string, unknown> = {
       cancel_at_period_end: object.cancel_at_period_end === true,
       updated_at: new Date().toISOString(),
     };
     if (nextStatus) patch.status = nextStatus;
     if (periodEnd) patch.ends_at = periodEnd;
-    await client.from("subscriptions").update(patch)
-      .eq("payment_provider", "stripe").eq("provider_subscription_id", providerSubscriptionId);
+    await updateStripeSubscription(providerSubscriptionId, patch);
   }
 };
 
@@ -265,7 +255,13 @@ export const billingProviderService = {
   async createCheckout(userId: string, planSlug: string, billingCycle: BillingCycle, requestedProvider?: BillingProvider): Promise<BillingCheckoutResult> {
     const env = getEnv();
     const provider = requestedProvider ?? env.BILLING_DEFAULT_PROVIDER;
-    const plan = await billingService.getPlanBySlug(planSlug);
+    const [{ subscription }, plan] = await Promise.all([
+      billingService.getCurrentPlan(userId),
+      billingService.getPlanBySlug(planSlug),
+    ]);
+    if (subscription?.status === "active") {
+      throw new HttpError(409, "You already have an active paid subscription. Cancel it before starting another checkout.", "BILLING_ACTIVE_SUBSCRIPTION_EXISTS");
+    }
     if (plan.plan_slug === "free") throw new HttpError(400, "The Free plan does not require checkout.", "BILLING_FREE_CHECKOUT_INVALID");
     if (plan.plan_slug !== "pro" && plan.plan_slug !== "premium") throw new HttpError(400, "This plan is not available for checkout.", "BILLING_PLAN_NOT_PURCHASABLE");
     const email = await getProfileEmail(userId);
@@ -342,7 +338,12 @@ export const billingProviderService = {
       .maybeSingle();
     if (error || !data) throw new HttpError(404, "Checkout transaction was not found.", "BILLING_TRANSACTION_NOT_FOUND");
 
-    await activateTransaction({ provider: "razorpay", providerOrderId: input.orderId, providerPaymentId: input.paymentId, rawResponse: { verifiedBy: "client_signature" } });
+    await activateTransaction({
+      provider: "razorpay",
+      providerOrderId: input.orderId,
+      providerPaymentId: input.paymentId,
+      rawResponse: { verifiedBy: "client_signature" },
+    });
   },
 
   async handleWebhook(provider: BillingProvider, rawBody: Buffer, signature: string, suppliedEventId?: string): Promise<{ duplicate: boolean }> {
