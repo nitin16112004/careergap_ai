@@ -24,6 +24,15 @@ export type AdminUser = {
   created_at: string;
 };
 
+export type AdminAuthState = {
+  id: string;
+  email: string | null;
+  role: "user" | "admin" | string;
+  bannedUntil: string | null;
+  lastSignInAt: string | null;
+  createdAt: string;
+};
+
 export type AdminSkill = {
   id: string;
   skill_name: string;
@@ -92,11 +101,16 @@ export type AdminUserDetail = {
 
 const json = (value: unknown): RequestInit => ({ method: "POST", body: JSON.stringify(value) });
 const put = (value: unknown): RequestInit => ({ method: "PUT", body: JSON.stringify(value) });
+const patch = (value: unknown): RequestInit => ({ method: "PATCH", body: JSON.stringify(value) });
 
 export const adminService = {
   analytics: () => apiRequest<AdminAnalytics>("/admin/analytics"),
   users: (search = "") => apiRequest<{ items: AdminUser[]; total: number; limit: number; offset: number }>(`/admin/users${search ? `?search=${encodeURIComponent(search)}` : ""}`),
   user: (userId: string) => apiRequest<AdminUserDetail>(`/admin/users/${encodeURIComponent(userId)}`),
+  userAuthState: (userId: string) => apiRequest<AdminAuthState>(`/admin/users/${encodeURIComponent(userId)}/auth-state`),
+  changeUserRole: (userId: string, role: "user" | "admin") => apiRequest<{ userId: string; role: string }>(`/admin/users/${encodeURIComponent(userId)}/role`, patch({ role })),
+  disableUser: (userId: string) => apiRequest<{ userId: string; disabled: boolean; bannedUntil: string | null }>(`/admin/users/${encodeURIComponent(userId)}/disable`, { method: "POST" }),
+  enableUser: (userId: string) => apiRequest<{ userId: string; disabled: boolean; bannedUntil: string | null }>(`/admin/users/${encodeURIComponent(userId)}/enable`, { method: "POST" }),
   jobRoles: () => apiRequest<AdminJobRole[]>("/admin/job-roles"),
   createJobRole: (input: { roleName: string; roleSlug: string; roleDescription?: string | null; category?: string | null }) => apiRequest<AdminJobRole>("/admin/job-roles", json(input)),
   updateJobRole: (roleId: string, input: Partial<{ roleName: string; roleSlug: string; roleDescription: string | null; category: string | null; isActive: boolean }>) => apiRequest<AdminJobRole>(`/admin/job-roles/${encodeURIComponent(roleId)}`, put(input)),
