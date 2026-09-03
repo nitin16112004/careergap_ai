@@ -9,6 +9,7 @@ import "./mvp.css";
 import "./ats-v1.css";
 import "./rag-v1.css";
 import "./reminder-v1.css";
+import "./billing-v1.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
