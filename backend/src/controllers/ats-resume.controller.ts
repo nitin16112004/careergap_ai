@@ -23,8 +23,7 @@ const generatedResumeIdFrom = (request: Request): string => {
 export const analyze = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
     try {
         const { targetRole, jobDescription } = request.body;
-        const resumeId = resumeIdFrom(request);
-        const result = await atsResumeService.analyze(userIdFrom(request), resumeId, targetRole, jobDescription);
+        const result = await atsResumeService.analyze(userIdFrom(request), resumeIdFrom(request), targetRole, jobDescription);
         response.status(200).json({ success: true, data: result });
     } catch (error) {
         next(error);
@@ -34,9 +33,8 @@ export const analyze = async (request: Request, response: Response, next: NextFu
 export const generate = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
     try {
         const { targetRole, jobDescription, versionName } = request.body;
-        const resumeId = resumeIdFrom(request);
-        const result = await atsResumeService.generate(userIdFrom(request), resumeId, targetRole, jobDescription, versionName);
-        response.status(201).json({ success: true, message: "ATS resume generated.", data: result });
+        const result = await atsResumeService.generate(userIdFrom(request), resumeIdFrom(request), targetRole, jobDescription, versionName);
+        response.status(201).json({ success: true, message: "ATS resume generated from reviewed resume facts.", data: result });
     } catch (error) {
         next(error);
     }
@@ -44,8 +42,7 @@ export const generate = async (request: Request, response: Response, next: NextF
 
 export const listGenerated = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
     try {
-        const result = await atsResumeService.getGeneratedList(userIdFrom(request));
-        response.json({ success: true, data: result });
+        response.json({ success: true, data: await atsResumeService.getGeneratedList(userIdFrom(request)) });
     } catch (error) {
         next(error);
     }
@@ -53,8 +50,7 @@ export const listGenerated = async (request: Request, response: Response, next: 
 
 export const getGenerated = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
     try {
-        const result = await atsResumeService.getGenerated(userIdFrom(request), generatedResumeIdFrom(request));
-        response.json({ success: true, data: result });
+        response.json({ success: true, data: await atsResumeService.getGenerated(userIdFrom(request), generatedResumeIdFrom(request)) });
     } catch (error) {
         next(error);
     }
@@ -69,6 +65,24 @@ export const updateGenerated = async (request: Request, response: Response, next
     }
 };
 
+export const exportPdf = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
+    try {
+        const result = await atsResumeService.exportGenerated(userIdFrom(request), generatedResumeIdFrom(request), "pdf");
+        response.json({ success: true, message: "PDF resume is ready for secure download.", data: result });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const exportDocx = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
+    try {
+        const result = await atsResumeService.exportGenerated(userIdFrom(request), generatedResumeIdFrom(request), "docx");
+        response.json({ success: true, message: "DOCX resume is ready for secure download.", data: result });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const deleteGenerated = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
     try {
         await atsResumeService.deleteGenerated(userIdFrom(request), generatedResumeIdFrom(request));
@@ -78,4 +92,13 @@ export const deleteGenerated = async (request: Request, response: Response, next
     }
 };
 
-export const atsResumeController = { analyze, generate, listGenerated, getGenerated, updateGenerated, deleteGenerated };
+export const atsResumeController = {
+    analyze,
+    generate,
+    listGenerated,
+    getGenerated,
+    updateGenerated,
+    exportPdf,
+    exportDocx,
+    deleteGenerated,
+};

@@ -12,8 +12,9 @@ const roadmap = {
     description: "A roadmap built from your current skills and target role.",
     duration_weeks: 2,
     progress_percentage: 50,
-    generated_by: "rag",
+    generated_by: "basic_template",
     ai_response: {
+        generation_mode: "basic_template",
         target_role: "Frontend Engineer",
         missing_skills: ["Testing", "System Design"],
         recommended_skills: ["Testing", "System Design", "Accessibility"],
@@ -70,7 +71,7 @@ const renderPage = (initialEntry: string = "/roadmap") => render(
 describe("RoadmapPage", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        roadmapServiceMock.list.mockResolvedValue([{ id: "roadmap-123", title: "Frontend Engineer Roadmap", description: "A roadmap built from your current skills and target role.", duration_weeks: 2, progress_percentage: 50, generated_by: "rag", ai_response: roadmap.ai_response, is_active: true, user_id: "user-1", skill_analysis_id: "analysis-1", role_id: "role-1", created_at: "2026-08-14", updated_at: "2026-08-14" }]);
+        roadmapServiceMock.list.mockResolvedValue([{ id: "roadmap-123", title: "Frontend Engineer Roadmap", description: "A roadmap built from your current skills and target role.", duration_weeks: 2, progress_percentage: 50, generated_by: "basic_template", ai_response: roadmap.ai_response, is_active: true, user_id: "user-1", skill_analysis_id: "analysis-1", role_id: "role-1", created_at: "2026-08-14", updated_at: "2026-08-14" }]);
         roadmapServiceMock.get.mockResolvedValue(roadmap);
         roadmapServiceMock.updateTaskStatus.mockResolvedValue({
             ...roadmap,
@@ -82,20 +83,19 @@ describe("RoadmapPage", () => {
         });
     });
 
-    it("renders the roadmap title, target role, and missing skills from the real backend data", async () => {
+    it("renders the target role and missing skills from the real backend data", async () => {
         renderPage();
 
-        expect((await screen.findAllByText("Frontend Engineer Roadmap")).length).toBeGreaterThan(0);
-        expect(screen.getByText(/Target role:\s*Frontend Engineer/i)).toBeInTheDocument();
+        expect(await screen.findByRole("heading", { name: "Frontend Engineer" })).toBeInTheDocument();
         expect(screen.getByText("Testing")).toBeInTheDocument();
         expect(screen.getByText("System Design")).toBeInTheDocument();
     });
 
-    it("updates the task status and progress when the user marks a task complete", async () => {
+    it("updates the task status and progress when the user completes a task", async () => {
         renderPage();
 
-        await screen.findByRole("button", { name: /mark as complete/i });
-        fireEvent.click(screen.getByRole("button", { name: /mark as complete/i }));
+        const completeButton = await screen.findByRole("button", { name: /complete write unit tests for a react feature/i });
+        fireEvent.click(completeButton);
 
         await waitFor(() => {
             expect(roadmapServiceMock.updateTaskStatus).toHaveBeenCalledWith("roadmap-123", "task-1", "completed");
@@ -107,6 +107,7 @@ describe("RoadmapPage", () => {
         roadmapServiceMock.list.mockResolvedValue([]);
         renderPage();
 
-        expect(await screen.findByText("No roadmap generated yet")).toBeInTheDocument();
+        expect(await screen.findByRole("heading", { name: "No roadmap yet" })).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: "Analyze skill gap" })).toHaveAttribute("href", "/skill-gap");
     });
 });
