@@ -20,7 +20,7 @@ Branch contract:
 | Login form | `frontend/src/pages/auth/AuthForms.test.tsx` — invalid form, verification route, protected redirect |
 | Resume upload UI | Existing `frontend/src/pages/onboarding/ResumeOnboarding.test.tsx` |
 | Profile review form | Existing `frontend/src/pages/onboarding/ResumeOnboarding.test.tsx` |
-| Dashboard cards | Existing dashboard implementation remains build/typechecked; live data validation is in release checklist |
+| Dashboard cards | `frontend/src/pages/DashboardPage.test.tsx` — stored metrics, behind-schedule state, next-action routing, empty/error states |
 | Skill gap page | `frontend/src/pages/SkillGapPage.test.tsx` — analysis rendering, rerun, basic roadmap, paid RAG error |
 | Roadmap task completion | Existing `frontend/src/pages/RoadmapPage.test.tsx` + backend progress tests |
 | Resume builder | Existing `frontend/src/pages/resume-builder/ResumeBuilder.test.tsx` |
@@ -38,7 +38,8 @@ Branch contract:
 | Roadmap generation | Existing `backend/src/services/roadmap.service.test.ts` |
 | Task completion | Existing `backend/src/services/roadmap-progress.service.test.ts` and `RoadmapPage.test.tsx` |
 | Reminder scheduler | `backend/src/services/reminder.service.test.ts` — defaults, persistence, empty scan, paid entitlement gate |
-| Payment verification/webhook boundary | Existing billing tests plus `backend/src/services/billing-payment-verification.service.test.ts` |
+| Payment verification | Existing billing tests plus `backend/src/services/billing-payment-verification.service.test.ts` — ownership, captured-state, amount/order/currency checks |
+| Payment webhook | `backend/src/services/billing-provider.service.test.ts` — raw-body signature rejection, malformed JSON, captured activation, duplicate-event idempotency |
 | Admin APIs/authorization | Existing admin middleware and admin-user service tests |
 
 ### AI service
