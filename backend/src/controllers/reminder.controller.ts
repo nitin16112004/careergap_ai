@@ -8,6 +8,12 @@ const userIdFrom = (request: Request): string => {
   return userId;
 };
 
+const targetUserIdFrom = (request: Request): string => {
+  const value = request.params.userId;
+  if (typeof value !== "string") throw new HttpError(400, "A valid user id is required.", "USER_ID_INVALID");
+  return value;
+};
+
 export const reminderController = {
   async getStatus(request: Request, response: Response, next: NextFunction): Promise<void> {
     try {
@@ -44,7 +50,7 @@ export const reminderController = {
 
   async getUserLogs(request: Request, response: Response, next: NextFunction): Promise<void> {
     try {
-      response.json({ success: true, data: await reminderService.getLogs(request.params.userId) });
+      response.json({ success: true, data: await reminderService.getLogs(targetUserIdFrom(request)) });
     } catch (error) {
       next(error);
     }
