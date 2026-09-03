@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
-import type { RoadmapTaskStatus } from "../types/roadmap";
+import type { RoadmapGenerationMode, RoadmapTaskStatus } from "../types/roadmap";
 import { roadmapService } from "../services/roadmap.service";
+import { ragRoadmapService } from "../services/rag-roadmap.service";
 import { HttpError } from "../utils/http-error";
 
 const userIdFrom = (request: Request): string => {
@@ -15,6 +16,12 @@ const roadmapIdFrom = (request: Request): string => {
     return value;
 };
 
+const jobIdFrom = (request: Request): string => {
+    const value = request.params.jobId;
+    if (typeof value !== "string") throw new HttpError(400, "A valid AI roadmap job id is required.", "RAG_JOB_ID_INVALID");
+    return value;
+};
+
 const taskIdFrom = (request: Request): string => {
     const value = request.params.taskId;
     if (typeof value !== "string") throw new HttpError(400, "A valid task id is required.", "ROADMAP_TASK_ID_INVALID");
@@ -23,15 +30,38 @@ const taskIdFrom = (request: Request): string => {
 
 export const generateRoadmap = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
     try {
-        const { skillAnalysisId, roleId, roleName, targetRole, durationWeeks } = request.body;
-        const result = await roadmapService.generate(userIdFrom(request), {
+        const { skillAnalysisId, roleId, roleName, targetRole, durationWeeks, generationMode } = request.body;
+        const mode: RoadmapGenerationMode = generationMode === "rag" ? "rag" : "basic_template";
+        const input = {
             skillAnalysisId: skillAnalysisId ?? null,
             roleId: roleId ?? null,
             roleName: typeof roleName === "string" ? roleName : undefined,
             targetRole: typeof targetRole === "string" ? targetRole : undefined,
             durationWeeks: typeof durationWeeks === "number" ? durationWeeks : undefined,
-        });
+            generationMode: mode,
+        };
+
+        if (mode === "rag") {
+            const job = await ragRoadmapService.enqueue(userIdFrom(request), input);
+            response.status(202).json({
+                success: true,
+                message: "AI roadmap generation queued.",
+                data: job,
+            });
+            return;
+        }
+
+        const result = await roadmapService.generate(userIdFrom(request), input);
         response.status(201).json({ success: true, message: "Roadmap generated successfully.", data: result });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getRoadmapJob = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
+    try {
+        const result = await ragRoadmapService.getJob(userIdFrom(request), jobIdFrom(request));
+        response.json({ success: true, data: result });
     } catch (error) {
         next(error);
     }
@@ -103,6 +133,7 @@ export const completeTask = async (request: Request, response: Response, next: N
 
 export const roadmapController = {
     generateRoadmap,
+    getRoadmapJob,
     listRoadmaps,
     getRoadmap,
     updateRoadmap,
