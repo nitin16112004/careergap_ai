@@ -1,6 +1,9 @@
 import type { NextFunction, Request, Response } from "express";
+import { cacheService } from "../services/cache.service";
 import { skillGapService } from "../services/skill-gap.service";
 import { HttpError } from "../utils/http-error";
+
+const CATALOG_CACHE_TTL_SECONDS = 300;
 
 const userIdFrom = (request: Request): string => {
   const userId = request.auth?.userId ?? request.user?.userId;
@@ -11,7 +14,12 @@ const userIdFrom = (request: Request): string => {
 export const skillGapController = {
   async listRoles(_request: Request, response: Response, next: NextFunction) {
     try {
-      response.json({ success: true, data: await skillGapService.listJobRoles() });
+      const data = await cacheService.remember(
+        "catalog:job-roles:v1",
+        CATALOG_CACHE_TTL_SECONDS,
+        () => skillGapService.listJobRoles(),
+      );
+      response.json({ success: true, data });
     } catch (error) {
       next(error);
     }
@@ -19,7 +27,13 @@ export const skillGapController = {
 
   async roleSkills(request: Request, response: Response, next: NextFunction) {
     try {
-      response.json({ success: true, data: await skillGapService.getRoleSkills(String(request.params.roleId)) });
+      const roleId = String(request.params.roleId);
+      const data = await cacheService.remember(
+        `catalog:role-skills:${roleId}:v1`,
+        CATALOG_CACHE_TTL_SECONDS,
+        () => skillGapService.getRoleSkills(roleId),
+      );
+      response.json({ success: true, data });
     } catch (error) {
       next(error);
     }
