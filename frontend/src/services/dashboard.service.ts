@@ -1,3 +1,4 @@
+import type { ReminderStatus } from "./reminder.service";
 import { apiRequest } from "./api";
 
 export interface DashboardSummary {
@@ -8,7 +9,9 @@ export interface DashboardSummary {
   roadmap: Record<string, unknown> | null;
   pendingTasks: number;
   completedTasks: number;
+  overdueTasks: number;
   generatedResume: Record<string, unknown> | null;
+  reminder: ReminderStatus;
 }
 
 export const dashboardService = {
