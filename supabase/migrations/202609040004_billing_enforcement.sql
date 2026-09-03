@@ -161,7 +161,40 @@ begin
 end;
 $$;
 
+create or replace function public.refund_plan_usage(
+  p_user_id uuid,
+  p_usage_key text,
+  p_amount integer default 1
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_period_start date := date_trunc('month', now())::date;
+  v_period_end date := (date_trunc('month', now()) + interval '1 month' - interval '1 day')::date;
+begin
+  if p_user_id is null or p_amount <= 0 then
+    return;
+  end if;
+
+  update public.usage_counters
+  set usage_count = greatest(usage_count - p_amount, 0),
+      updated_at = now()
+  where user_id = p_user_id
+    and usage_key = p_usage_key
+    and period_start = v_period_start
+    and period_end = v_period_end;
+end;
+$$;
+
 revoke all on function public.consume_plan_usage(uuid, text, integer) from public;
 revoke all on function public.consume_plan_usage(uuid, text, integer) from anon;
 revoke all on function public.consume_plan_usage(uuid, text, integer) from authenticated;
 grant execute on function public.consume_plan_usage(uuid, text, integer) to service_role;
+
+revoke all on function public.refund_plan_usage(uuid, text, integer) from public;
+revoke all on function public.refund_plan_usage(uuid, text, integer) from anon;
+revoke all on function public.refund_plan_usage(uuid, text, integer) from authenticated;
+grant execute on function public.refund_plan_usage(uuid, text, integer) to service_role;
