@@ -1,8 +1,8 @@
 import { CheckCircle2, CircleDashed, Clock3, Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import { AuthCard } from "../components/auth/AuthCard";
-import { Button, LoadingButton } from "../components/auth/Button";
+import { Button } from "../components/auth/Button";
 import { ErrorMessage, SuccessMessage } from "../components/auth/FeedbackMessage";
 import { roadmapService } from "../services/roadmap.service";
 import type { RoadmapRecord } from "../types/roadmap";
@@ -23,18 +23,20 @@ const describeStatus = (status: string | null | undefined): string => {
 };
 
 export const RoadmapPage = (): JSX.Element => {
+    const { roadmapId } = useParams<{ roadmapId: string }>();
     const [state, setState] = useState<RoadmapPageState>({ roadmap: null, loading: true, submittingTaskId: null });
     const [error, setError] = useState<string>();
     const [success, setSuccess] = useState<string>();
 
-    useEffect(() => {
-        void loadRoadmap();
-    }, []);
-
-    const loadRoadmap = async (): Promise<void> => {
+    const loadRoadmap = useCallback(async (): Promise<void> => {
         setError(undefined);
         setState((current) => ({ ...current, loading: true }));
         try {
+            if (roadmapId) {
+                const detail = await roadmapService.get(roadmapId);
+                setState((current) => ({ ...current, roadmap: detail as RoadmapRecord, loading: false }));
+                return;
+            }
             const [firstRoadmap] = await roadmapService.list();
             if (!firstRoadmap) {
                 setState((current) => ({ ...current, roadmap: null, loading: false }));
@@ -46,7 +48,11 @@ export const RoadmapPage = (): JSX.Element => {
             setState((current) => ({ ...current, loading: false }));
             setError(caught instanceof Error ? caught.message : "Unable to load your roadmap.");
         }
-    };
+    }, [roadmapId]);
+
+    useEffect(() => {
+        void loadRoadmap();
+    }, [loadRoadmap]);
 
     const toggleTask = async (taskId: string): Promise<void> => {
         if (!state.roadmap) return;
@@ -59,10 +65,10 @@ export const RoadmapPage = (): JSX.Element => {
             const result = await roadmapService.updateTaskStatus(state.roadmap.id, taskId, nextStatus);
             const nextRoadmap = { ...state.roadmap, progress_percentage: result.progress_percentage, weeks: result.weeks as RoadmapRecord["weeks"] };
             setState((current) => ({ ...current, roadmap: nextRoadmap, submittingTaskId: null }));
-            setSuccess("Task completed");
+            setSuccess(nextStatus === "completed" ? "Task completed" : "Task reopened");
         } catch (caught) {
             setState((current) => ({ ...current, submittingTaskId: null }));
-            setError(caught instanceof Error ? caught.message : "Unable to complete the roadmap task.");
+            setError(caught instanceof Error ? caught.message : "Unable to update the roadmap task.");
         }
     };
 
@@ -71,9 +77,13 @@ export const RoadmapPage = (): JSX.Element => {
     const progress = state.roadmap ? formatProgress(state.roadmap.progress_percentage) : 0;
     const targetRole = state.roadmap?.ai_response?.target_role ?? state.roadmap?.title ?? "Career roadmap";
     const missingSkills = Array.isArray(state.roadmap?.ai_response?.missing_skills) ? state.roadmap.ai_response.missing_skills as string[] : [];
+    const generationMode = state.roadmap?.generated_by === "rag" ? "AI RAG" : "Basic plan";
+    const subtitle = state.roadmap?.generated_by === "rag"
+        ? "Generated from your skill gap using embeddings, pgvector retrieval, retrieved knowledge-base context, and a validated LLM response."
+        : "A deterministic skill-gap plan built from your saved profile and current analysis. You can generate an AI RAG version from Skill Gap Analysis when providers are configured.";
 
     return (
-        <AuthCard className="onboarding-card" eyebrow="Career roadmap" title="Your roadmap" subtitle="A skill-gap-driven MVP plan that updates as you complete your weekly milestones. Full embedding + pgvector + LLM RAG is a later documented phase.">
+        <AuthCard className="onboarding-card" eyebrow="Career roadmap" title="Your roadmap" subtitle={subtitle}>
             <ErrorMessage>{error}</ErrorMessage>
             <SuccessMessage>{success}</SuccessMessage>
 
@@ -92,7 +102,7 @@ export const RoadmapPage = (): JSX.Element => {
                 <>
                     <section className="roadmap-summary-card">
                         <div className="roadmap-summary-copy">
-                            <span className="eyebrow">Target role</span>
+                            <span className="eyebrow">{generationMode} · Target role</span>
                             <h2>{String(targetRole)}</h2>
                             <p>{state.roadmap.description}</p>
                         </div>
