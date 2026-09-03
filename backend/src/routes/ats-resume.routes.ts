@@ -12,6 +12,8 @@ export const createAtsResumeRoutes = (): Router => {
     router.get("/generated", atsResumeController.listGenerated);
     router.get("/generated/:generatedResumeId", validate(atsGeneratedIdSchema), atsResumeController.getGenerated);
     router.patch("/generated/:generatedResumeId", validate(atsUpdateSchema), atsResumeController.updateGenerated);
+    router.post("/generated/:generatedResumeId/export/pdf", validate(atsGeneratedIdSchema), atsResumeController.exportPdf);
+    router.post("/generated/:generatedResumeId/export/docx", validate(atsGeneratedIdSchema), atsResumeController.exportDocx);
     router.delete("/generated/:generatedResumeId", validate(atsGeneratedIdSchema), atsResumeController.deleteGenerated);
     return router;
 };
