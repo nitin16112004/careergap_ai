@@ -2,10 +2,12 @@ import { Router } from "express";
 import { adminController } from "../controllers/admin.controller";
 import { getKnowledgeBaseIndexStatus, reindexKnowledgeBase } from "../controllers/admin-knowledge-base.controller";
 import { getQueueOperations, getRuntimeOperations } from "../controllers/admin-operations.controller";
+import { adminUserController } from "../controllers/admin-user.controller";
 import { requireAdmin } from "../middleware/admin.middleware";
 import { requireSupabaseSession } from "../middleware/auth.middleware";
 import { validate } from "../middleware/validate.middleware";
 import { knowledgeBaseReindexSchema } from "../validators/admin-knowledge-base.validators";
+import { adminUserRoleSchema } from "../validators/admin-user.validators";
 import {
   adminCreateJobRoleSchema,
   adminCreateSkillSchema,
@@ -22,6 +24,10 @@ export const createAdminRoutes = (): Router => {
   router.get("/analytics", adminController.analytics);
   router.get("/users", adminController.users);
   router.get("/users/:userId", adminController.user);
+  router.get("/users/:userId/auth-state", adminUserController.authState);
+  router.patch("/users/:userId/role", validate(adminUserRoleSchema), adminUserController.changeRole);
+  router.post("/users/:userId/disable", adminUserController.disable);
+  router.post("/users/:userId/enable", adminUserController.enable);
 
   router.get("/job-roles", adminController.jobRoles);
   router.post("/job-roles", validate(adminCreateJobRoleSchema), adminController.createJobRole);
