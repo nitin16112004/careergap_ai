@@ -71,10 +71,10 @@ describe("BillingPage", () => {
     renderBilling();
 
     expect(await screen.findByRole("heading", { name: "Plan, usage, and upgrades" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Free" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Free", level: 2 })).toBeInTheDocument();
     expect(screen.getByLabelText("Resume uploads: 1 of 1")).toBeInTheDocument();
     expect(screen.getByLabelText("Roadmap generations: 1 of 2")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Pro" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Pro", level: 3 })).toBeInTheDocument();
     expect(screen.getByText("No payments yet")).toBeInTheDocument();
     expect(mocked.plans).toHaveBeenCalledTimes(1);
     expect(mocked.current).toHaveBeenCalledTimes(1);
@@ -85,7 +85,7 @@ describe("BillingPage", () => {
   it("switches between monthly and yearly prices without starting checkout", async () => {
     const user = userEvent.setup();
     renderBilling();
-    await screen.findByRole("heading", { name: "Pro" });
+    await screen.findByRole("heading", { name: "Pro", level: 3 });
 
     expect(screen.getByText(/₹499/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Yearly" }));
