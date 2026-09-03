@@ -155,7 +155,7 @@ describe("resume upload onboarding", () => {
     renderReview();
     expect(await screen.findByDisplayValue("Ava Stone")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Frontend Engineer")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Bengaluru")).toBeInTheDocument();
+    expect(screen.getByLabelText("Preferred location")).toHaveValue("Bengaluru");
     expect(screen.getByText("Resume analyzed successfully")).toBeInTheDocument();
     expect(screen.getByText("TypeScript")).toBeInTheDocument();
   });
