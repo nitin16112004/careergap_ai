@@ -20,6 +20,7 @@ const RoadmapPage = lazy(() => import("./pages/RoadmapPage").then((module) => ({
 const SettingsPage = lazy(() => import("./pages/SettingsPage").then((module) => ({ default: module.SettingsPage })));
 const BillingPage = lazy(() => import("./pages/BillingPage").then((module) => ({ default: module.BillingPage })));
 const AdminPage = lazy(() => import("./pages/AdminPage").then((module) => ({ default: module.AdminPage })));
+const AdminRoleManagementPage = lazy(() => import("./pages/AdminRoleManagementPage").then((module) => ({ default: module.AdminRoleManagementPage })));
 
 export const App = (): JSX.Element => (
   <Suspense fallback={<FullPageLoader label="Loading your secure workspace..." />}>
@@ -48,7 +49,7 @@ export const App = (): JSX.Element => (
         <Route path="/billing/checkout" element={<BillingPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/admin/users" element={<AdminPage />} />
-        <Route path="/admin/job-roles" element={<AdminPage />} />
+        <Route path="/admin/job-roles" element={<AdminRoleManagementPage />} />
         <Route path="/admin/knowledge-base" element={<AdminPage />} />
         <Route path="/admin/reminders" element={<AdminPage />} />
         <Route path="/admin/logs" element={<AdminPage />} />
