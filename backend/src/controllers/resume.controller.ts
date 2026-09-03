@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { billingService } from "../services/billing.service";
 import { resumeService } from "../services/resume.service";
 import { HttpError } from "../utils/http-error";
 
@@ -15,10 +16,15 @@ const resumeIdFrom = (request: Request): string => {
 };
 
 export const upload = async (request: Request, response: Response, next: NextFunction): Promise<void> => {
+  const userId = userIdFrom(request);
+  let reserved = false;
   try {
-    const resume = await resumeService.upload(userIdFrom(request), request.file);
+    await billingService.consume(userId, "resume_upload");
+    reserved = true;
+    const resume = await resumeService.upload(userId, request.file);
     response.status(201).json({ success: true, message: "Resume uploaded successfully.", data: resume });
   } catch (error) {
+    if (reserved) await billingService.refund(userId, "resume_upload").catch(() => undefined);
     next(error);
   }
 };
