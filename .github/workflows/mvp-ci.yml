@@ -2,9 +2,9 @@ name: Product CI
 
 on:
   pull_request:
-    branches: [dev, feat/mvp-backbone, feat/ats-v1-1, feat/rag-v1-2, feat/v1-3-hardening, feat/v1-4-reminders]
+    branches: [dev, feat/mvp-backbone, feat/ats-v1-1, feat/rag-v1-2, feat/v1-3-hardening, feat/v1-4-reminders, feat/billing-upgrade, feat/admin-panel]
   push:
-    branches: [feat/mvp-backbone, feat/ats-v1-1, feat/rag-v1-2, feat/v1-3-hardening, feat/v1-4-reminders, feat/billing-upgrade]
+    branches: [feat/mvp-backbone, feat/ats-v1-1, feat/rag-v1-2, feat/v1-3-hardening, feat/v1-4-reminders, feat/billing-upgrade, feat/admin-panel]
 
 permissions:
   contents: read
@@ -79,7 +79,7 @@ jobs:
       - name: Dependency consistency
         run: pip check
       - name: Compile
-        run: python -m compileall -q app tests
+        run: python -m compileall app
       - name: Test
         run: pytest -q
 
@@ -89,17 +89,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
       - name: Validate Compose model
-        run: docker compose config --quiet
+        run: docker compose config >/tmp/compose-config.yml
       - name: Build backend image
-        run: docker build -t careerguid-ai-backend:ci ./backend
+        run: docker build -f backend/Dockerfile -t careerguid-backend:ci .
       - name: Build frontend image
-        run: docker build -t careerguid-ai-frontend:ci ./frontend
-      - name: Build AI service image
-        run: docker build -t careerguid-ai-service:ci ./ai-service
-      - name: Validate edge Nginx configuration
-        run: >-
-          docker run --rm
-          --add-host backend:127.0.0.1
-          --add-host frontend:127.0.0.1
-          -v "$PWD/infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro"
-          nginx:1.27-alpine nginx -t
+        run: docker build -f frontend/Dockerfile -t careerguid-frontend:ci .
+      - name: Build AI image
+        run: docker build -f ai-service/Dockerfile -t careerguid-ai:ci .
+      - name: Validate edge Nginx syntax
+        run: docker run --rm -v "$PWD/infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro" nginx:1.27-alpine nginx -t
