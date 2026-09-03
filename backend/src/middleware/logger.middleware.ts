@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import pino from "pino";
 import pinoHttp from "pino-http";
 import { logger } from "../config/logger";
 
@@ -30,6 +31,6 @@ export const loggerMiddleware = pinoHttp({
       remoteAddress: request.remoteAddress,
     }),
     res: (response) => ({ statusCode: response.statusCode }),
-    err: pinoHttp.stdSerializers.err,
+    err: pino.stdSerializers.err,
   },
 });
