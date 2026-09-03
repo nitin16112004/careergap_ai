@@ -2,7 +2,7 @@ import { Bell, CheckCircle2, CircleDashed, Clock3, Mail, Settings2 } from "lucid
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AuthCard } from "../components/auth/AuthCard";
-import { Button } from "../components/auth/Button";
+import { LoadingButton } from "../components/auth/Button";
 import { ErrorMessage, SuccessMessage } from "../components/auth/FeedbackMessage";
 import { notificationService, type AppNotification } from "../services/notification.service";
 import { reminderService, type ReminderLog, type ReminderPreferences } from "../services/reminder.service";
@@ -117,7 +117,7 @@ export const SettingsPage = (): JSX.Element => {
             <ToggleRow checked={preferences.weeklyPendingEnabled} disabled={!preferences.emailEnabled} title="Weekly pending tasks" description="Send one reminder for the current roadmap week when tasks remain pending." onChange={(value) => updatePreference("weeklyPendingEnabled", value)} />
             <ToggleRow checked={preferences.inactiveEnabled} disabled={!preferences.emailEnabled} title="7-day inactivity" description="Remind me when no authenticated activity has been recorded for seven days." onChange={(value) => updatePreference("inactiveEnabled", value)} />
             <ToggleRow checked={preferences.motivationalEnabled} disabled={!preferences.emailEnabled} title="Behind-schedule motivation" description="Send a focused nudge when roadmap progress falls behind the expected checkpoint." onChange={(value) => updatePreference("motivationalEnabled", value)} />
-            <div className="settings-actions"><Button type="button" loading={saving} onClick={() => { void save(); }}>Save preferences</Button></div>
+            <div className="settings-actions"><LoadingButton type="button" loading={saving} loadingLabel="Saving preferences..." onClick={() => { void save(); }}>Save preferences</LoadingButton></div>
           </> : <p className="form-hint">Reminder preferences are unavailable.</p>}
         </section>
 
