@@ -77,4 +77,29 @@ describe("emailService reminder delivery", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
   });
+
+  it("passes a stable idempotency key to the transactional provider", async () => {
+    vi.stubEnv("EMAIL_PROVIDER", "resend");
+    vi.stubEnv("EMAIL_PROVIDER_API_KEY", "re_test_key");
+    vi.stubEnv("EMAIL_FROM", "CareerGuid AI <reminders@example.com>");
+    resetEnvForTests();
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ id: "email-123" }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    }));
+
+    const result = await emailService.sendTransactional({
+      to: "user@example.com",
+      subject: "Reminder",
+      html: "<p>Reminder</p>",
+      text: "Reminder",
+      idempotencyKey: "reminder/reminder-log-123",
+    });
+
+    expect(result).toEqual({ provider: "resend", providerMessageId: "email-123" });
+    const request = fetchSpy.mock.calls[0]?.[1];
+    expect(request?.headers).toMatchObject({ "idempotency-key": "reminder/reminder-log-123" });
+    fetchSpy.mockRestore();
+  });
 });
