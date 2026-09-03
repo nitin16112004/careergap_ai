@@ -5,14 +5,14 @@ COPY package*.json ./
 RUN npm ci
 COPY . .
 
-ARG VITE_API_URL=/api/v1
-ARG VITE_SUPABASE_URL=https://example.supabase.co
-ARG VITE_SUPABASE_ANON_KEY=public-anon-key-placeholder
-ENV VITE_API_URL=$VITE_API_URL
-ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
-ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
+ARG PUBLIC_API_URL=/api/v1
+ARG PUBLIC_SUPABASE_URL=https://example.supabase.co
+ARG PUBLIC_SUPABASE_ANON_VALUE=public-anon-key-placeholder
 
-RUN npm run build
+RUN VITE_API_URL="$PUBLIC_API_URL" \
+    VITE_SUPABASE_URL="$PUBLIC_SUPABASE_URL" \
+    VITE_SUPABASE_ANON_KEY="$PUBLIC_SUPABASE_ANON_VALUE" \
+    npm run build
 
 FROM nginx:1.27-alpine AS runtime
 COPY nginx.conf /etc/nginx/conf.d/default.conf
