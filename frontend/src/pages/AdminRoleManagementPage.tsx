@@ -12,7 +12,6 @@ const sections = [
   { path: "/admin/logs", label: "Logs" },
 ];
 
-const normalizeSkillName = (value: string): string => value.trim().toLowerCase().replace(/\s+/g, "-");
 const messageOf = (error: unknown): string => error instanceof Error ? error.message : "Admin request failed.";
 
 export const AdminRoleManagementPage = (): JSX.Element => {
@@ -188,8 +187,8 @@ export const AdminRoleManagementPage = (): JSX.Element => {
           <div className="admin-form-grid">
             <form className="admin-panel admin-form" onSubmit={(event) => void createRole(event)}>
               <h2>Add job role</h2>
-              <label className="admin-field"><span>Role name</span><input required value={roleName} onChange={(event) => { setRoleName(event.target.value); if (!roleSlug) setRoleSlug(event.target.value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")); }} /></label>
-              <label className="admin-field"><span>Role slug</span><input required value={roleSlug} onChange={(event) => setRoleSlug(event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} /></label>
+              <label className="admin-field"><span>Role name</span><input required value={roleName} onChange={(event) => setRoleName(event.target.value)} /></label>
+              <label className="admin-field"><span>Role slug</span><input required value={roleSlug} onChange={(event) => setRoleSlug(event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} placeholder="software-engineer" /></label>
               <label className="admin-field"><span>Description</span><textarea value={roleDescription} onChange={(event) => setRoleDescription(event.target.value)} rows={3} /></label>
               <label className="admin-field"><span>Category</span><input value={roleCategory} onChange={(event) => setRoleCategory(event.target.value)} /></label>
               <button className="admin-button" disabled={busy === "create-role"}>Create role</button>
@@ -207,8 +206,8 @@ export const AdminRoleManagementPage = (): JSX.Element => {
 
             <form className="admin-panel admin-form" onSubmit={(event) => void createSkill(event)}>
               <h2>Add canonical skill</h2>
-              <label className="admin-field"><span>Skill name</span><input required value={skillName} onChange={(event) => { setSkillName(event.target.value); if (!normalizedName) setNormalizedName(normalizeSkillName(event.target.value)); }} /></label>
-              <label className="admin-field"><span>Normalized name</span><input required value={normalizedName} onChange={(event) => setNormalizedName(event.target.value)} /></label>
+              <label className="admin-field"><span>Skill name</span><input required value={skillName} onChange={(event) => setSkillName(event.target.value)} /></label>
+              <label className="admin-field"><span>Normalized name</span><input required value={normalizedName} onChange={(event) => setNormalizedName(event.target.value)} placeholder="typescript" /></label>
               <label className="admin-field"><span>Category</span><input value={skillCategory} onChange={(event) => setSkillCategory(event.target.value)} /></label>
               <label className="admin-field"><span>Description</span><textarea value={skillDescription} onChange={(event) => setSkillDescription(event.target.value)} rows={3} /></label>
               <button className="admin-button" disabled={busy === "create-skill"}>Create skill</button>
