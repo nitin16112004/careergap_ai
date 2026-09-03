@@ -189,6 +189,113 @@ begin
 end;
 $$;
 
+-- Payment callbacks can arrive concurrently from the browser and provider
+-- webhook. Locking the transaction row makes activation idempotent and keeps
+-- subscription replacement + transaction mutation in one database transaction.
+create or replace function public.activate_paid_subscription(
+  p_provider text,
+  p_provider_order_id text,
+  p_provider_payment_id text default null,
+  p_provider_subscription_id text default null,
+  p_provider_customer_id text default null,
+  p_provider_event_id text default null,
+  p_raw_response jsonb default '{}'::jsonb
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_transaction public.payment_transactions%rowtype;
+  v_subscription_id uuid;
+  v_starts_at timestamptz := now();
+  v_ends_at timestamptz;
+begin
+  if p_provider not in ('razorpay', 'stripe') then
+    raise exception 'unsupported billing provider';
+  end if;
+  if coalesce(p_provider_order_id, '') = '' then
+    raise exception 'provider order id is required';
+  end if;
+
+  select t.* into v_transaction
+  from public.payment_transactions t
+  where t.provider = p_provider
+    and t.provider_order_id = p_provider_order_id
+  order by t.created_at desc
+  limit 1
+  for update;
+
+  if v_transaction.id is null then
+    raise exception 'checkout transaction not found';
+  end if;
+
+  if v_transaction.status = 'paid' and v_transaction.subscription_id is not null then
+    return v_transaction.subscription_id;
+  end if;
+  if v_transaction.status = 'refunded' then
+    raise exception 'refunded transaction cannot activate subscription';
+  end if;
+  if v_transaction.plan_id is null then
+    raise exception 'checkout transaction has no plan';
+  end if;
+  if v_transaction.billing_cycle not in ('monthly', 'yearly') then
+    raise exception 'checkout transaction has invalid billing cycle';
+  end if;
+
+  if v_transaction.billing_cycle = 'yearly' then
+    v_ends_at := v_starts_at + interval '1 year';
+  else
+    v_ends_at := v_starts_at + interval '1 month';
+  end if;
+
+  update public.subscriptions
+  set status = 'cancelled',
+      cancel_at_period_end = false,
+      updated_at = v_starts_at
+  where user_id = v_transaction.user_id
+    and status = 'active';
+
+  insert into public.subscriptions (
+    user_id,
+    plan_id,
+    status,
+    billing_cycle,
+    starts_at,
+    ends_at,
+    payment_provider,
+    provider_subscription_id,
+    provider_customer_id,
+    cancel_at_period_end,
+    metadata
+  ) values (
+    v_transaction.user_id,
+    v_transaction.plan_id,
+    'active',
+    v_transaction.billing_cycle,
+    v_starts_at,
+    v_ends_at,
+    p_provider,
+    nullif(p_provider_subscription_id, ''),
+    nullif(p_provider_customer_id, ''),
+    p_provider = 'razorpay',
+    jsonb_build_object('providerOrderId', p_provider_order_id)
+  )
+  returning id into v_subscription_id;
+
+  update public.payment_transactions
+  set subscription_id = v_subscription_id,
+      provider_payment_id = nullif(p_provider_payment_id, ''),
+      provider_event_id = nullif(p_provider_event_id, ''),
+      status = 'paid',
+      raw_response = coalesce(p_raw_response, '{}'::jsonb)
+  where id = v_transaction.id;
+
+  return v_subscription_id;
+end;
+$$;
+
 revoke all on function public.consume_plan_usage(uuid, text, integer) from public;
 revoke all on function public.consume_plan_usage(uuid, text, integer) from anon;
 revoke all on function public.consume_plan_usage(uuid, text, integer) from authenticated;
@@ -198,3 +305,8 @@ revoke all on function public.refund_plan_usage(uuid, text, integer) from public
 revoke all on function public.refund_plan_usage(uuid, text, integer) from anon;
 revoke all on function public.refund_plan_usage(uuid, text, integer) from authenticated;
 grant execute on function public.refund_plan_usage(uuid, text, integer) to service_role;
+
+revoke all on function public.activate_paid_subscription(text, text, text, text, text, text, jsonb) from public;
+revoke all on function public.activate_paid_subscription(text, text, text, text, text, text, jsonb) from anon;
+revoke all on function public.activate_paid_subscription(text, text, text, text, text, text, jsonb) from authenticated;
+grant execute on function public.activate_paid_subscription(text, text, text, text, text, text, jsonb) to service_role;
