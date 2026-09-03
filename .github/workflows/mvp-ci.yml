@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [dev, feat/mvp-backbone, feat/ats-v1-1, feat/rag-v1-2, feat/v1-3-hardening, feat/v1-4-reminders, feat/billing-upgrade, feat/admin-panel, feat/phase16-testing]
   push:
-    branches: [feat/mvp-backbone, feat/ats-v1-1, feat/rag-v1-2, feat/v1-3-hardening, feat/v1-4-reminders, feat/billing-upgrade, feat/admin-panel, feat/phase16-testing]
+    branches: [dev, feat/mvp-backbone, feat/ats-v1-1, feat/rag-v1-2, feat/v1-3-hardening, feat/v1-4-reminders, feat/billing-upgrade, feat/admin-panel, feat/phase16-testing]
 
 permissions:
   contents: read
