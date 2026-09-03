@@ -56,8 +56,8 @@ to authenticated
 using (public.is_admin());
 
 -- Service-role backend calls this RPC immediately before a metered operation.
--- It atomically creates/locks the current calendar-month counter so concurrent
--- requests cannot exceed a user's plan limit.
+-- The zero-value row is created first and then locked. That closes the
+-- first-request race where two concurrent requests could both observe no row.
 create or replace function public.consume_plan_usage(
   p_user_id uuid,
   p_usage_key text,
@@ -73,7 +73,7 @@ declare
   v_limit integer;
   v_used integer;
   v_period_start date := date_trunc('month', now())::date;
-  v_period_end date := (date_trunc('month', now()) + interval '1 month - 1 day')::date;
+  v_period_end date := (date_trunc('month', now()) + interval '1 month' - interval '1 day')::date;
 begin
   if p_user_id is null then
     raise exception 'user id is required';
@@ -113,28 +113,12 @@ begin
     when 'ai_chat' then v_plan.ai_chat_limit
   end;
 
-  -- NULL means unlimited. This keeps the schema extensible for future plans.
-  if v_limit is null then
-    insert into public.usage_counters (
-      user_id, usage_key, usage_count, period_start, period_end
-    ) values (
-      p_user_id, p_usage_key, p_amount, v_period_start, v_period_end
-    )
-    on conflict (user_id, usage_key, period_start, period_end)
-    do update set usage_count = public.usage_counters.usage_count + excluded.usage_count,
-                  updated_at = now()
-    returning usage_count into v_used;
-
-    return jsonb_build_object(
-      'allowed', true,
-      'planSlug', v_plan.plan_slug,
-      'limit', null,
-      'used', v_used,
-      'remaining', null,
-      'periodStart', v_period_start,
-      'periodEnd', v_period_end
-    );
-  end if;
+  insert into public.usage_counters (
+    user_id, usage_key, usage_count, period_start, period_end
+  ) values (
+    p_user_id, p_usage_key, 0, v_period_start, v_period_end
+  )
+  on conflict (user_id, usage_key, period_start, period_end) do nothing;
 
   select usage_count into v_used
   from public.usage_counters
@@ -144,11 +128,7 @@ begin
     and period_end = v_period_end
   for update;
 
-  if not found then
-    v_used := 0;
-  end if;
-
-  if v_used + p_amount > v_limit then
+  if v_limit is not null and v_used + p_amount > v_limit then
     return jsonb_build_object(
       'allowed', false,
       'planSlug', v_plan.plan_slug,
@@ -160,14 +140,13 @@ begin
     );
   end if;
 
-  insert into public.usage_counters (
-    user_id, usage_key, usage_count, period_start, period_end
-  ) values (
-    p_user_id, p_usage_key, p_amount, v_period_start, v_period_end
-  )
-  on conflict (user_id, usage_key, period_start, period_end)
-  do update set usage_count = public.usage_counters.usage_count + excluded.usage_count,
-                updated_at = now()
+  update public.usage_counters
+  set usage_count = usage_count + p_amount,
+      updated_at = now()
+  where user_id = p_user_id
+    and usage_key = p_usage_key
+    and period_start = v_period_start
+    and period_end = v_period_end
   returning usage_count into v_used;
 
   return jsonb_build_object(
@@ -175,7 +154,7 @@ begin
     'planSlug', v_plan.plan_slug,
     'limit', v_limit,
     'used', v_used,
-    'remaining', greatest(v_limit - v_used, 0),
+    'remaining', case when v_limit is null then null else greatest(v_limit - v_used, 0) end,
     'periodStart', v_period_start,
     'periodEnd', v_period_end
   );
