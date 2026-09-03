@@ -8,7 +8,8 @@ The stable repository baseline remains `dev`. Active implementation is intention
 
 1. `feat/mvp-backbone` — Version 1.0 MVP backbone, draft PR #1.
 2. `feat/ats-v1-1` — ATS resume builder Version 1.1, draft PR #2 targeting the MVP branch.
-3. `feat/rag-v1-2` — true RAG roadmap Version 1.2, currently validated in CI and intended to target the ATS branch as a dependent draft PR.
+3. `feat/rag-v1-2` — true RAG roadmap Version 1.2, draft PR #3 targeting the ATS branch.
+4. `feat/v1-3-hardening` — scalability, security, observability, worker, Docker/Nginx, and CI hardening built on the RAG branch.
 
 Implemented foundations now include:
 
@@ -21,20 +22,23 @@ Implemented foundations now include:
 - Roadmap task completion and progress recalculation.
 - ATS Version 1.1 factual-content safeguards, generated-resume editing, and private PDF/DOCX export with signed downloads.
 - True RAG Version 1.2 implementation: provider-backed query embeddings, Supabase pgvector similarity retrieval, validated LLM roadmap generation, BullMQ background jobs, RAG observability, curated knowledge-base seed content, and admin-controlled embedding indexing.
-- Docker Compose wiring for backend, Redis, AI service, resume worker, and roadmap worker.
-- GitHub Actions CI for backend, frontend, and AI-service validation.
+- Version 1.3 request correlation, stricter security headers/CORS, dependency-aware readiness checks, resilient Redis connectivity, graceful process/worker shutdown, dead-letter tracking, admin operations APIs, and production-like edge networking.
+- Docker Compose wiring for edge Nginx, frontend, backend, Redis, AI service, resume worker, and roadmap worker.
+- GitHub Actions validation for backend, frontend, AI service, security audit thresholds, Docker image builds, Compose syntax, and Nginx syntax.
+- Dependabot coverage for npm, pip, GitHub Actions, and Docker dependencies.
 
 The product keeps `basic_template` and `rag` as explicit separate roadmap modes. A deterministic template is never labeled as RAG.
 
 ### Validation boundary
 
-Automated CI currently validates:
+Automated CI validates:
 
-- backend: TypeScript typecheck, tests, production build
-- frontend: TypeScript typecheck, tests, production build
-- AI service: Python compile check and pytest
+- backend: high-severity npm dependency audit, TypeScript typecheck, tests, production build
+- frontend: high-severity npm dependency audit, TypeScript typecheck, tests, production build
+- AI service: dependency consistency, Python compile check, pytest
+- infrastructure: Compose model, backend/frontend/AI Docker builds, and edge Nginx syntax
 
-A real end-to-end RAG request still requires an actual Supabase project with migrations applied, Redis/runtime services, configured embedding and LLM provider credentials, and an indexed knowledge base. Real credentials are intentionally not committed to the repository, so CI success must not be confused with live-provider integration validation.
+A real end-to-end environment still requires an actual Supabase project with migrations applied, Redis/runtime services, configured provider credentials, an indexed RAG knowledge base, production domains, HTTPS, and external monitoring/log shipping. Real credentials are intentionally not committed to the repository, so CI success must not be confused with live-provider or production-environment validation.
 
 ## Documentation
 
@@ -49,16 +53,19 @@ The authoritative product and technical documents are under `documentation/` wit
 
 When implementation details conflict with stale status notes, follow those authoritative documents and the tested current code.
 
-Phase-specific setup notes include `RAG_ROADMAP_SETUP.md`, which documents the current Version 1.2 provider, vector-indexing, queue, API, and local-runtime contract.
+Phase-specific setup notes:
+
+- `RAG_ROADMAP_SETUP.md` — Version 1.2 provider, vector-indexing, queue, API, and local-runtime contract.
+- `V1_3_PRODUCTION_HARDENING.md` — Version 1.3 security, observability, worker reliability, Docker/Nginx topology, CI gates, and production checklist.
 
 ## Monorepo Layout
 
-- `frontend/` — React, TypeScript, Vite client.
+- `frontend/` — React, TypeScript, Vite client plus production frontend container.
 - `backend/` — Node.js, Express, TypeScript modular-monolith API plus BullMQ resume/RAG workers.
 - `ai-service/` — Python FastAPI resume parsing, embedding, and structured RAG generation service.
 - `worker/` — workspace reserved for broader scheduler/worker extraction as the system grows.
 - `supabase/` — PostgreSQL migrations, RLS/storage policies, pgvector retrieval contract, and seed data.
-- `infra/` — Docker/Nginx/deployment infrastructure work.
+- `infra/` — Nginx/deployment infrastructure.
 - `scripts/` — project utilities.
 - `documentation/` — source product/engineering documentation.
 
@@ -75,9 +82,9 @@ Phase-specific setup notes include `RAG_ROADMAP_SETUP.md`, which documents the c
 
 Never commit real secrets. Copy the provided example files and configure your own local values.
 
-Frontend requires the public Supabase URL/anon key and backend API URL. Backend requires Supabase server credentials, Redis configuration, frontend origin, and AI-service URL. The AI service requires embedding/LLM provider configuration for RAG. The Supabase service-role key must never be exposed to the frontend.
+Frontend requires the public Supabase URL/anon key and backend API URL. Backend requires Supabase server credentials, Redis configuration, frontend origin/CORS allowlist, and AI-service URL. The AI service requires embedding/LLM provider configuration for RAG. The Supabase service-role key must never be exposed to the frontend.
 
-See `.env.example` and `RAG_ROADMAP_SETUP.md` for the current provider-variable contract.
+See `.env.example`, `RAG_ROADMAP_SETUP.md`, and `V1_3_PRODUCTION_HARDENING.md`.
 
 ## Common Development Commands
 
@@ -126,31 +133,30 @@ cd backend
 npm run roadmap-worker
 ```
 
-Full local service set:
+Production-like local stack:
 
 ```powershell
+docker compose config
 docker compose up --build
 ```
 
+The edge entrypoint defaults to `http://localhost:8080`. Redis, backend, and AI-service ports are internal-only in the default Compose topology.
+
 After the RAG migrations and curated knowledge seed are applied, an authenticated admin must index the knowledge base using the protected admin indexing API before AI roadmap retrieval can succeed.
 
-Regenerate extracted documentation:
-
-```powershell
-python scripts\extract_pdfs.py
-```
+Operational health endpoints include `/api/health/live` and `/api/health/ready`. Admin-only runtime/queue summaries are available under `/api/v1/admin/ops`.
 
 ## Documentation-Driven Build Order
 
-The repository is currently at the Version 1.2 implementation checkpoint. Continue in this sequence:
+The repository is now at the Version 1.3 implementation checkpoint. Continue in this sequence:
 
 1. Apply and live-validate Version 1.0 MVP against a real Supabase/Redis/runtime environment.
 2. Live-validate Version 1.1 ATS private storage and PDF/DOCX downloads.
-3. Apply the Version 1.2 RAG migrations, configure providers, index the knowledge base, and run real end-to-end RAG validation.
-4. Version 1.3 scalability, security, observability, worker, Docker/Nginx, and deployment hardening.
-5. Version 1.4 progress/reminder automation.
+3. Apply Version 1.2 RAG migrations, configure providers, index the knowledge base, and run real end-to-end RAG validation.
+4. Deploy and live-validate Version 1.3 hardening: HTTPS/domains, private Redis, readiness checks, workers, queue monitoring, centralized logs, and alerts.
+5. Version 1.4 progress/reminder automation with the real scheduler/email queue flow.
 6. Billing and usage enforcement.
-7. Full admin application beyond the current RAG indexing endpoints.
+7. Full admin application beyond the current indexing/operations endpoints.
 8. Public marketing pages, profile/settings surfaces, integration tests, deployment, monitoring, and final polish.
 
 Do not skip live validation of the earlier product contracts when moving into later phases. Each advanced capability must remain grounded in persisted, authenticated user data and explicit failure states.
