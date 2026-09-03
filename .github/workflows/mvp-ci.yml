@@ -97,4 +97,9 @@ jobs:
       - name: Build AI service image
         run: docker build -t careerguid-ai-service:ci ./ai-service
       - name: Validate edge Nginx configuration
-        run: docker run --rm -v "$PWD/infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro" nginx:1.27-alpine nginx -t
+        run: >-
+          docker run --rm
+          --add-host backend:127.0.0.1
+          --add-host frontend:127.0.0.1
+          -v "$PWD/infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro"
+          nginx:1.27-alpine nginx -t
