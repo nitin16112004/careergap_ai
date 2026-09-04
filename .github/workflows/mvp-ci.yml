@@ -2,9 +2,9 @@ name: Product CI
 
 on:
   pull_request:
-    branches: [dev, feat/mvp-backbone, feat/ats-v1-1, feat/rag-v1-2, feat/v1-3-hardening, feat/v1-4-reminders, feat/billing-upgrade, feat/admin-panel, feat/phase16-testing]
+    branches: [main, dev, feat/mvp-backbone, feat/ats-v1-1, feat/rag-v1-2, feat/v1-3-hardening, feat/v1-4-reminders, feat/billing-upgrade, feat/admin-panel, feat/phase16-testing, feat/phase17-deployment]
   push:
-    branches: [dev, feat/mvp-backbone, feat/ats-v1-1, feat/rag-v1-2, feat/v1-3-hardening, feat/v1-4-reminders, feat/billing-upgrade, feat/admin-panel, feat/phase16-testing]
+    branches: [main, dev, feat/mvp-backbone, feat/ats-v1-1, feat/rag-v1-2, feat/v1-3-hardening, feat/v1-4-reminders, feat/billing-upgrade, feat/admin-panel, feat/phase16-testing, feat/phase17-deployment]
 
 permissions:
   contents: read
@@ -94,8 +94,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-      - name: Validate Compose model
+      - name: Validate development Compose model
         run: docker compose config --quiet
+      - name: Validate production Compose model
+        run: docker compose --env-file deployment/production.env.example -f docker-compose.production.yml config --quiet
+      - name: Validate production environment checker
+        run: sh deployment/validate-production-env.sh deployment/production.env.example
       - name: Build backend image
         run: docker build -t careerguid-ai-backend:ci ./backend
       - name: Build frontend image
@@ -109,3 +113,22 @@ jobs:
           --add-host frontend:127.0.0.1
           -v "$PWD/infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro"
           nginx:1.27-alpine nginx -t
+      - name: Validate production HTTPS Nginx configuration
+        run: |
+          mkdir -p /tmp/careerguid-ai-tls
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+            -subj "/CN=app.example.com" \
+            -keyout /tmp/careerguid-ai-tls/privkey.pem \
+            -out /tmp/careerguid-ai-tls/fullchain.pem >/dev/null 2>&1
+          docker run --rm \
+            --add-host backend:127.0.0.1 \
+            --add-host frontend:127.0.0.1 \
+            -e APP_DOMAIN=app.example.com \
+            -e NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx \
+            -v "$PWD/infra/nginx/nginx.prod.conf.template:/etc/nginx/templates/nginx.conf.template:ro" \
+            -v "/tmp/careerguid-ai-tls:/etc/nginx/tls:ro" \
+            nginx:1.27-alpine nginx -t
+      - name: Validate deployment scripts
+        run: |
+          sh -n deployment/validate-production-env.sh
+          sh -n scripts/verify-production.sh

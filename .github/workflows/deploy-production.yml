@@ -1,0 +1,118 @@
+name: Deploy Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Exact 40-character main commit SHA whose GHCR images were published"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_BASE_URL }}
+    env:
+      IMAGE_TAG: ${{ inputs.image_tag }}
+      PRODUCTION_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
+      PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+      PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
+      PRODUCTION_SSH_PORT: ${{ vars.PRODUCTION_SSH_PORT || '22' }}
+      PRODUCTION_DEPLOY_PATH: ${{ vars.PRODUCTION_DEPLOY_PATH || '/opt/careerguid-ai' }}
+      PRODUCTION_SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+      PRODUCTION_SSH_KNOWN_HOSTS: ${{ secrets.PRODUCTION_SSH_KNOWN_HOSTS }}
+      GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+      GHCR_READ_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
+    steps:
+      - name: Validate deployment configuration
+        shell: bash
+        run: |
+          [[ "$IMAGE_TAG" =~ ^[0-9a-f]{40}$ ]] || { echo "image_tag must be a full 40-character commit SHA" >&2; exit 1; }
+          [[ "$PRODUCTION_BASE_URL" == https://* ]] || { echo "PRODUCTION_BASE_URL must use https://" >&2; exit 1; }
+          [[ "$PRODUCTION_DEPLOY_PATH" == /* ]] || { echo "PRODUCTION_DEPLOY_PATH must be absolute" >&2; exit 1; }
+          for name in PRODUCTION_HOST PRODUCTION_USER PRODUCTION_SSH_PRIVATE_KEY PRODUCTION_SSH_KNOWN_HOSTS GHCR_USERNAME GHCR_READ_TOKEN; do
+            [[ -n "${!name}" ]] || { echo "Missing required production setting: $name" >&2; exit 1; }
+          done
+
+      - name: Checkout main release history
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Verify image tag belongs to main
+        shell: bash
+        run: |
+          git cat-file -e "$IMAGE_TAG^{commit}" || { echo "Release SHA does not exist in repository history" >&2; exit 1; }
+          git merge-base --is-ancestor "$IMAGE_TAG" HEAD || { echo "Release SHA is not an ancestor of main" >&2; exit 1; }
+
+      - name: Configure verified SSH host
+        shell: bash
+        run: |
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$PRODUCTION_SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$PRODUCTION_SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
+
+      - name: Upload immutable deployment definitions
+        shell: bash
+        run: |
+          target="$PRODUCTION_USER@$PRODUCTION_HOST"
+          ssh -p "$PRODUCTION_SSH_PORT" "$target" \
+            "mkdir -p '$PRODUCTION_DEPLOY_PATH/infra/nginx' '$PRODUCTION_DEPLOY_PATH/deployment'"
+          scp -P "$PRODUCTION_SSH_PORT" docker-compose.production.yml \
+            "$target:$PRODUCTION_DEPLOY_PATH/docker-compose.production.yml"
+          scp -P "$PRODUCTION_SSH_PORT" infra/nginx/nginx.prod.conf.template \
+            "$target:$PRODUCTION_DEPLOY_PATH/infra/nginx/nginx.prod.conf.template"
+          scp -P "$PRODUCTION_SSH_PORT" deployment/validate-production-env.sh \
+            "$target:$PRODUCTION_DEPLOY_PATH/deployment/validate-production-env.sh"
+
+      - name: Validate server production environment
+        shell: bash
+        run: |
+          target="$PRODUCTION_USER@$PRODUCTION_HOST"
+          ssh -p "$PRODUCTION_SSH_PORT" "$target" \
+            "cd '$PRODUCTION_DEPLOY_PATH' && test -f .env.production && PRODUCTION_ENV_STRICT=1 sh deployment/validate-production-env.sh .env.production"
+
+      - name: Authenticate production host to GHCR
+        shell: bash
+        run: |
+          target="$PRODUCTION_USER@$PRODUCTION_HOST"
+          printf '%s' "$GHCR_READ_TOKEN" | \
+            ssh -p "$PRODUCTION_SSH_PORT" "$target" \
+              "docker login ghcr.io -u '$GHCR_USERNAME' --password-stdin"
+
+      - name: Pull and roll out exact release
+        shell: bash
+        run: |
+          target="$PRODUCTION_USER@$PRODUCTION_HOST"
+          ssh -p "$PRODUCTION_SSH_PORT" "$target" \
+            "cd '$PRODUCTION_DEPLOY_PATH' && \
+             REGISTRY=ghcr.io IMAGE_NAMESPACE='${{ github.repository_owner }}' IMAGE_TAG='$IMAGE_TAG' \
+             docker compose --env-file .env.production -f docker-compose.production.yml pull && \
+             REGISTRY=ghcr.io IMAGE_NAMESPACE='${{ github.repository_owner }}' IMAGE_TAG='$IMAGE_TAG' \
+             docker compose --env-file .env.production -f docker-compose.production.yml up -d --remove-orphans"
+
+      - name: Verify public production health
+        run: sh scripts/verify-production.sh "$PRODUCTION_BASE_URL"
+
+      - name: Capture production service status
+        if: always()
+        shell: bash
+        run: |
+          target="$PRODUCTION_USER@$PRODUCTION_HOST"
+          ssh -p "$PRODUCTION_SSH_PORT" "$target" \
+            "cd '$PRODUCTION_DEPLOY_PATH' && \
+             REGISTRY=ghcr.io IMAGE_NAMESPACE='${{ github.repository_owner }}' IMAGE_TAG='$IMAGE_TAG' \
+             docker compose --env-file .env.production -f docker-compose.production.yml ps"
