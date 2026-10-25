@@ -12,19 +12,19 @@ export const roadmapGenerateSchema = z.object({
         message: "Provide a target role or skill analysis to generate a roadmap.",
         path: ["roleName"],
     }),
-    query: z.record(z.unknown()).default({}),
+    query: z.record(z.string(), z.unknown()).default({}),
     params: z.object({}).default({}),
 });
 
 export const roadmapJobIdSchema = z.object({
-    body: z.record(z.unknown()).default({}),
-    query: z.record(z.unknown()).default({}),
+    body: z.record(z.string(), z.unknown()).default({}),
+    query: z.record(z.string(), z.unknown()).default({}),
     params: z.object({ jobId: z.string().uuid("A valid AI roadmap job id is required") }),
 });
 
 export const roadmapIdSchema = z.object({
-    body: z.record(z.unknown()).default({}),
-    query: z.record(z.unknown()).default({}),
+    body: z.record(z.string(), z.unknown()).default({}),
+    query: z.record(z.string(), z.unknown()).default({}),
     params: z.object({ roadmapId: z.string().uuid("A valid roadmap id is required") }),
 });
 
@@ -36,7 +36,7 @@ export const roadmapUpdateSchema = z.object({
         isActive: z.boolean().optional(),
         progressPercentage: z.coerce.number().int().min(0).max(100).optional(),
     }).refine((value) => Object.keys(value).length > 0, { message: "At least one roadmap field is required." }),
-    query: z.record(z.unknown()).default({}),
+    query: z.record(z.string(), z.unknown()).default({}),
     params: z.object({ roadmapId: z.string().uuid("A valid roadmap id is required") }),
 });
 
@@ -46,7 +46,7 @@ export const roadmapTaskUpdateSchema = z.object({
     }).refine((value) => Object.keys(value).length > 0, {
         message: "Provide a valid task status update.",
     }),
-    query: z.record(z.unknown()).default({}),
+    query: z.record(z.string(), z.unknown()).default({}),
     params: z.object({
         roadmapId: z.string().uuid("A valid roadmap id is required"),
         taskId: z.string().uuid("A valid task id is required"),
@@ -54,8 +54,8 @@ export const roadmapTaskUpdateSchema = z.object({
 });
 
 export const roadmapTaskCompletionSchema = z.object({
-    body: z.record(z.unknown()).default({}),
-    query: z.record(z.unknown()).default({}),
+    body: z.record(z.string(), z.unknown()).default({}),
+    query: z.record(z.string(), z.unknown()).default({}),
     params: z.object({
         roadmapId: z.string().uuid("A valid roadmap id is required"),
         taskId: z.string().uuid("A valid task id is required"),

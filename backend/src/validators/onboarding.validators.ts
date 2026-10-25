@@ -29,10 +29,10 @@ export const onboardingProfileSchema = z.object({
     noticePeriod: nullableText,
     careerGoal: nullableText,
     resumeId: z.string().uuid().optional(),
-    fieldSources: z.record(z.enum(["resume", "manual", "ai", "system"])).optional(),
+    fieldSources: z.record(z.string(), z.enum(["resume", "manual", "ai", "system"])).optional(),
   }),
-  query: z.record(z.unknown()).default({}),
-  params: z.record(z.unknown()).default({}),
+  query: z.record(z.string(), z.unknown()).default({}),
+  params: z.record(z.string(), z.unknown()).default({}),
 });
 
 export type OnboardingProfileInput = z.infer<typeof onboardingProfileSchema>["body"];

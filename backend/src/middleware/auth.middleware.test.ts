@@ -25,6 +25,16 @@ const requestWith = (authorization?: string) => ({
 }) as any;
 
 describe("requireSupabaseSession", () => {
+  it("rejects a disabled account even when its token still resolves to a user", async () => {
+    mocked.getUser.mockResolvedValue({ data: { user: {
+      id: "admin-1", app_metadata: { role: "admin" },
+      banned_until: new Date(Date.now() + 86_400_000).toISOString(),
+    } }, error: null });
+    const next = vi.fn();
+    await requireSupabaseSession(requestWith("Bearer existing-token"), {} as never, next);
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 403, code: "AUTH_DISABLED" }));
+    expect(mocked.touch).not.toHaveBeenCalled();
+  });
   it("rejects requests without a bearer token", async () => {
     const next = vi.fn();
     await requireSupabaseSession(requestWith(), {} as never, next);

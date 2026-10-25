@@ -11,6 +11,9 @@ export const requireSupabaseSession = async (request: Request, _response: Respon
 
     const { data, error } = await getSupabaseAnonClient().auth.getUser(token);
     if (error || !data.user) throw new HttpError(401, "Invalid or expired session", "AUTH_INVALID");
+    if (data.user.banned_until && Date.parse(data.user.banned_until) > Date.now()) {
+      throw new HttpError(403, "Account access is disabled", "AUTH_DISABLED");
+    }
 
     const authContext = {
       id: data.user.id,

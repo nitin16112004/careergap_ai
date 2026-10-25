@@ -13,14 +13,14 @@ export const signupSchema = z.object({
     message: "Passwords do not match",
     path: ["confirmPassword"],
   }),
-  query: z.record(z.unknown()).default({}),
-  params: z.record(z.unknown()).default({}),
+  query: z.record(z.string(), z.unknown()).default({}),
+  params: z.record(z.string(), z.unknown()).default({}),
 });
 
 export const loginSchema = z.object({
   body: z.object({ email, password }),
-  query: z.record(z.unknown()).default({}),
-  params: z.record(z.unknown()).default({}),
+  query: z.record(z.string(), z.unknown()).default({}),
+  params: z.record(z.string(), z.unknown()).default({}),
 });
 
 export const verifyEmailSchema = z.object({
@@ -28,20 +28,20 @@ export const verifyEmailSchema = z.object({
     email,
     token: z.string().trim().length(6, "Verification code must be 6 digits").regex(/^\d{6}$/, "Verification code must be 6 digits"),
   }),
-  query: z.record(z.unknown()).default({}),
-  params: z.record(z.unknown()).default({}),
+  query: z.record(z.string(), z.unknown()).default({}),
+  params: z.record(z.string(), z.unknown()).default({}),
 });
 
 export const refreshSchema = z.object({
   body: z.object({ refreshToken: z.string().min(1, "Refresh token is required") }),
-  query: z.record(z.unknown()).default({}),
-  params: z.record(z.unknown()).default({}),
+  query: z.record(z.string(), z.unknown()).default({}),
+  params: z.record(z.string(), z.unknown()).default({}),
 });
 
 export const forgotPasswordSchema = z.object({
   body: z.object({ email }),
-  query: z.record(z.unknown()).default({}),
-  params: z.record(z.unknown()).default({}),
+  query: z.record(z.string(), z.unknown()).default({}),
+  params: z.record(z.string(), z.unknown()).default({}),
 });
 
 export const resetPasswordSchema = z.object({
@@ -49,8 +49,8 @@ export const resetPasswordSchema = z.object({
     message: "Passwords do not match",
     path: ["confirmPassword"],
   }),
-  query: z.record(z.unknown()).default({}),
-  params: z.record(z.unknown()).default({}),
+  query: z.record(z.string(), z.unknown()).default({}),
+  params: z.record(z.string(), z.unknown()).default({}),
 });
 
 export const resendVerificationSchema = forgotPasswordSchema;

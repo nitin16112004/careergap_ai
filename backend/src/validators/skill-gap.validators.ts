@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-const emptyBody = z.record(z.unknown()).default({});
-const emptyQuery = z.record(z.unknown()).default({});
-const emptyParams = z.record(z.unknown()).default({});
+const emptyBody = z.record(z.string(), z.unknown()).default({});
+const emptyQuery = z.record(z.string(), z.unknown()).default({});
+const emptyParams = z.record(z.string(), z.unknown()).default({});
 
 export const roleIdSchema = z.object({
   body: emptyBody,

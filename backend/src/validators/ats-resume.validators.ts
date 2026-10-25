@@ -2,8 +2,8 @@ import { z } from "zod";
 
 const resumeId = z.string().uuid("A valid resume id is required");
 const generatedResumeId = z.string().uuid("A valid generated resume id is required");
-const emptyQuery = z.record(z.unknown()).default({});
-const emptyParams = z.record(z.unknown()).default({});
+const emptyQuery = z.record(z.string(), z.unknown()).default({});
+const emptyParams = z.record(z.string(), z.unknown()).default({});
 
 export const atsAnalyzeSchema = z.object({
     body: z.object({
@@ -27,7 +27,7 @@ export const atsGenerateSchema = z.object({
 });
 
 export const atsGeneratedIdSchema = z.object({
-    body: z.record(z.unknown()).default({}),
+    body: z.record(z.string(), z.unknown()).default({}),
     query: emptyQuery,
     params: z.object({ generatedResumeId }),
 });
@@ -38,7 +38,7 @@ export const atsUpdateSchema = z.object({
         versionName: z.string().trim().min(1).max(80).optional(),
         atsScore: z.number().min(0).max(100).optional(),
         atsKeywords: z.array(z.string().trim().min(1).max(80)).max(200).optional(),
-        resumeContent: z.record(z.unknown()).optional(),
+        resumeContent: z.record(z.string(), z.unknown()).optional(),
     }).refine((value) => Object.keys(value).length > 0, "At least one generated resume field is required"),
     query: emptyQuery,
     params: z.object({ generatedResumeId }),
